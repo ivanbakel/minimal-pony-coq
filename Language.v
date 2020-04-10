@@ -96,13 +96,13 @@ Definition hat (aT : aliasedType) : ponyType :=
 Inductive var : Type :=
   | variable : string -> var.
 
-Inductive Temporary : Type :=
-  | temporary : string -> Temporary.
+Inductive temp : Type :=
+  | temporary : string -> temp.
 
 Inductive path : Type :=
   | use (x : var)
   | consume (x : var)
-  | temp (t : Temporary).
+  | useTemp (t : temp).
 
 Inductive fieldId : Type :=
   | fId : string -> fieldId.
@@ -131,7 +131,7 @@ Inductive rhs : Type :=
 Inductive expression : Type :=
   | varDecl (x : var)
   | assign (x : var) (arhs : @aliased rhs)
-  | tempAssign (t : Temporary) (pf : fieldOfPath).
+  | tempAssign (t : temp) (pf : fieldOfPath).
 
 Inductive expressionSeq : Type :=
   | final : path -> expressionSeq
@@ -145,6 +145,15 @@ Module DecidableVar.
 Include (UsualDecidableTypeBoth with Definition t := Syntax.var).
 Scheme Equality for Syntax.var.
 End DecidableVar.
+
+Module DecidableTemp.
+Include (UsualDecidableTypeBoth with Definition t := Syntax.temp).
+Scheme Equality for Syntax.temp.
+End DecidableTemp.
+
+Module DecidableVarTemp.
+Include (UsualDecidableTypeBoth with Definition t := sum Syntax.var Syntax.temp).
+End DecidableVarTemp.
 
 Module DecidableField.
 Include (UsualDecidableTypeBoth with Definition t := Syntax.fieldId).
