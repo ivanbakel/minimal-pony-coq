@@ -94,7 +94,7 @@ Record frame : Type :=
   frameAlloc
   { localVars : varMap value
   ; toExecute : Syntax.expressionSeq
-  ; returnVar : Syntax.var
+  ; returnVar : Syntax.var?
   ; superFrame : frameAddr?
   }.
 
@@ -106,19 +106,24 @@ Record heap : Type :=
   ; frames : frameMap frame
   }.
 
+Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
+Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
+Definition someMessageAddr (iota : messageAddr) : someAddr := (inl (inr iota)).
+Definition someFrameAddr (iota : frameAddr) : someAddr := (inr iota).
+
 Inductive HeapMapsTo : forall X : Type, someAddr -> X -> heap -> Prop :=
   | ActorMapsTo (iota : actorAddr) (a : actor) (chi : heap)
   : ActorMap.MapsTo iota a (actors chi) 
-      -> HeapMapsTo actor (inl (inl (inl iota))) a chi
+      -> HeapMapsTo actor (someActorAddr iota) a chi
   | ObjectMapsTo (iota : objectAddr) (a : object) (chi : heap)
   : ObjectMap.MapsTo iota a (objects chi) 
-      -> HeapMapsTo object (inl (inl (inr iota))) a chi
+      -> HeapMapsTo object (someObjectAddr iota) a chi
   | MessageMapsTo (iota : messageAddr) (a : message) (chi : heap)
   : MessageMap.MapsTo iota a (messages chi) 
-      -> HeapMapsTo message (inl (inr iota)) a chi
+      -> HeapMapsTo message (someMessageAddr iota) a chi
   | FrameMapsTo (iota : frameAddr) (a : frame) (chi : heap)
   : FrameMap.MapsTo iota a (frames chi) 
-      -> HeapMapsTo frame (inr iota) a chi.
+      -> HeapMapsTo frame (someFrameAddr iota) a chi.
 
 Definition HeapIn (iota : someAddr) (chi : heap) : Prop :=
   exists X : Type, exists x : X, HeapMapsTo X iota x chi.
