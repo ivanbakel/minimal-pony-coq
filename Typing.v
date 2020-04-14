@@ -122,19 +122,88 @@ Definition viewAdapt
       end
   end.
 
+(* Partial function - not defined for @val@, @box@, @tag@ *)
 Definition writeAdapt
   (objCap : capability)
-  (fieldCap : baseCapability)
-  : capability.
-Proof.
-  Admitted.
+  (fieldCap : baseCapability) 
+  : option capability :=
+  match objCap with
+  | base iso =>
+      match fieldCap with
+      | iso => Some isohat
+      | trn => Some (base val)
+      | ref => Some (base tag)
+      | val => Some (base val)
+      | box => Some (base tag)
+      | tag => Some (base tag)
+      end
+  | base trn => 
+      match fieldCap with
+      | iso => Some isohat
+      | trn => Some (base val)
+      | ref => Some (base box)
+      | val => Some (base val)
+      | box => Some (base box)
+      | tag => Some (base tag)
+      end
+  | base ref =>
+      match fieldCap with
+      | iso => Some isohat
+      | trn => Some trnhat
+      | ref => Some (base ref)
+      | val => Some (base val)
+      | box => Some (base box)
+      | tag => Some (base tag)
+      end
+  | base val => None
+  | base box => None
+  | base tag => None
+  | isohat =>
+      match fieldCap with
+      | iso => Some isohat
+      | trn => Some isohat
+      | ref => Some isohat
+      | val => Some (base val)
+      | box => Some (base val)
+      | tag => Some (base tag)
+      end
+  | trnhat => 
+      match fieldCap with
+      | iso => Some isohat
+      | trn => Some trnhat
+      | ref => Some trnhat
+      | val => Some (base val)
+      | box => Some (base box)
+      | tag => Some (base tag)
+      end
+  end.
 
-Definition safeToWrite
-  (objCap : capability)
-  (valCap : baseCapability)
-  : Prop.
+Inductive safeToWrite : capability -> baseCapability -> Prop :=
+  (* Write to an @iso@ *)
+  | safeToWrite_iso_iso : safeToWrite (base iso) iso
+  | safeToWrite_iso_val : safeToWrite (base iso) val
+  | safeToWrite_iso_tag : safeToWrite (base iso) tag
+  (* Write to a @trn@ *)
+  | safeToWrite_trn_iso : safeToWrite (base trn) iso
+  | safeToWrite_trn_trn : safeToWrite (base trn) trn
+  | safeToWrite_trn_val : safeToWrite (base trn) val
+  | safeToWrite_trn_tag : safeToWrite (base trn) tag
+  (* Write to a @ref@ *)
+  | safeToWrite_ref (b : baseCapability) : safeToWrite (base ref) b
+  (* Write to an @iso^@ *)
+  | safeToWrite_isohat (b : baseCapability) : safeToWrite isohat b
+  (* Write to a @trn^@ *)
+  | safeToWrite_trnhat (b : baseCapability) : safeToWrite trnhat b.
+
+Example safeToWrite_implies_writeAdapt_defined : forall k b, safeToWrite k b -> exists k', writeAdapt k b = Some k'.
 Proof.
-  Admitted.
+  intros k b stw_k_b.
+  induction stw_k_b; try (compute; eauto).
+  (* Solve the three "general" cases, which take any value of b *)
+  induction b; try (compute; eauto).
+  induction b; try (compute; eauto).
+  induction b; try (compute; eauto).
+  Qed.
  
 Reserved Notation "g |-{ X } x : T ==> g'" (at level 9, x at level 50, T at level 50).
 
@@ -163,13 +232,14 @@ Inductive typing { P : Program.program } : forall ( X : Type), context -> X -> p
   : gamma |-{ @aliased rhs } arhs : asPonyType aT ==> gamma
     -> VarMapsTo x aT gamma'
     -> gamma |-{ expression } assign x arhs : hat aT ==> gamma'
-  | expr_fieldassign (gamma gamma' gamma'' : context) (p p' : path) (f : fieldId) (s s' : typeId) (k : capability) (b b' : baseCapability)
+  | expr_fieldassign (gamma gamma' gamma'' : context) (p p' : path) (f : fieldId) (s s' : typeId) (k k' : capability) (b b' : baseCapability)
   : gamma |-{ aliased } (aliasOf p') : (type s' (base b)) ==> gamma'
       -> gamma' |-{ path } p : (type s k) ==> gamma''
       -> @Program.fieldLookup P s f (aType s' b')
       -> safeToWrite k b
       -> (base b) <; (base b')
-      -> gamma |-{ rhs } fieldAssign (p, f) (aliasOf p') : type s' (writeAdapt k b') ==> gamma''
+      -> writeAdapt k b' = Some k'
+      -> gamma |-{ rhs } fieldAssign (p, f) (aliasOf p') : type s' k' ==> gamma''
 where "G |-{ X } x : T ==> G'" := (typing X G x T G')
 with
 typing_list { P : Program.program } : forall (X : Type), context -> list X -> list ponyType -> context -> Prop :=
@@ -181,3 +251,7 @@ typing_list { P : Program.program } : forall (X : Type), context -> list X -> li
     -> typing_list X gamma (x :: lx) (t :: lt) gamma''.
 
 End Typing.
+
+Module WFExpressions.
+
+End WFExpressions.
