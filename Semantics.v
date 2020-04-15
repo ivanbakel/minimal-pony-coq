@@ -66,7 +66,7 @@ Definition fieldMap := FieldMap.t.
 Module VarMap := Map DecidableVar.
 Definition varMap := VarMap.t.
 
-Definition value : Type := (actorAddr + objectAddr)?.
+Definition value : Type := someAddr?.
 
 Record actor : Type :=
   actorAlloc
@@ -84,9 +84,9 @@ Record object : Type :=
 
 Record message : Type :=
   messageAlloc
-  { messageId : Syntax.methodId
+  { messageId : Syntax.behaviourId
   ; receiverId : Syntax.actorId
-  ; messageArgs : varMap value
+  ; messageArgs : list value
   ; nextMessage : messageAddr?
   }.
 
