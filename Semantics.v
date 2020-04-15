@@ -128,4 +128,19 @@ Inductive HeapMapsTo : forall X : Type, someAddr -> X -> heap -> Prop :=
 Definition HeapIn (iota : someAddr) (chi : heap) : Prop :=
   exists X : Type, exists x : X, HeapMapsTo X iota x chi.
 
+Definition HeapAddrType (iota : someAddr) (s : Syntax.typeId) (chi : heap) : Prop :=
+  exists a F mQ fS, inr a = s /\ HeapMapsTo actor iota (actorAlloc a F mQ fS) chi
+  \/
+  exists c F, inl c = s /\ HeapMapsTo object iota (objectAlloc c F) chi.
+
+Definition HeapValueType (v : value) (s : Syntax.typeId) (chi : heap) : Prop :=
+  forall iota, v = Some iota -> HeapAddrType iota s chi.
+
 End Heap.
+
+Module Semantics (Map : WSfun).
+
+Module Heap := Heap Map.
+Include Heap.
+
+End Semantics.
