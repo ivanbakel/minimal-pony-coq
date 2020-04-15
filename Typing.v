@@ -13,6 +13,8 @@ Include Syntax.
 
 Definition context : Type := (varTempMap aliasedType).
 
+Definition contextKey : Type := VarTempMap.key.
+
 Definition sendableCtxt (gamma : context) : context :=
   VarTempMap.fold
     (fun var varType sendableMap =>
@@ -39,6 +41,12 @@ Definition addVar (var : var) (aT : aliasedType) (gamma : context) : context :=
 
 Definition removeVar (var : var) (gamma : context) : context :=
   VarTempMap.remove (inl var) gamma.
+
+Fixpoint removeMany (keys : list contextKey) (gamma : context) :=
+  match keys with
+  | h :: t => VarTempMap.remove h (removeMany t gamma)
+  | nil => gamma
+  end.
 
 End Context.
 
@@ -240,6 +248,28 @@ Inductive typing { P : Program.program } : forall ( X : Type), context -> X -> p
       -> (base b) <; (base b')
       -> writeAdapt k b' = Some k'
       -> gamma |-{ rhs } fieldAssign (p, f) (aliasOf p') : type s' k' ==> gamma''
+  | expr_funcall (gamma gamma' gamma'' : context) (ap : @aliased path) (args : list (@aliased path)) (s : typeId) (b : baseCapability)
+      (mId : methodId) (mArgs : Program.arrayVarMap aliasedType) (returnType : ponyType) (body : expressionSeq)
+  : @Program.methodLookup P s mId (Program.mDef b mArgs returnType body)
+    -> typing_list (@aliased path) gamma args (Program.argValues mArgs) gamma'
+    -> gamma' |-{ @aliased path } ap : (type s (base b)) ==> gamma''
+    -> gamma |-{ rhs } methodCall ap mId args : returnType ==> gamma''
+  | expr_becall (gamma gamma' gamma'' : context) (ap : @aliased path) (args : list (@aliased path)) (s : typeId)
+      (bId : behaviourId) (bArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
+  : @Program.behaviourLookup P s bId (Program.bDef bArgs body)
+    -> typing_list (@aliased path) gamma args (Program.argValues bArgs) gamma'
+    -> gamma' |-{ @aliased path } ap : (type s (base tag)) ==> gamma''
+    -> gamma |-{ rhs } behaviourCall ap bId args : (type s (base tag)) ==> gamma''
+  | expr_classcon (gamma gamma' : context) (args : list (@aliased path)) (c : classId)
+      (kId : constructorId) (cnArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
+  : @Program.constructorLookup P (inl c) kId (Program.cnDef cnArgs body)
+    -> typing_list (@aliased path) gamma args (Program.argValues cnArgs) gamma'
+    -> gamma |-{ rhs } constructorCall (inl c) kId args : (type (inl c) (base ref)) ==> gamma'
+  | expr_actorcon (gamma gamma' : context) (args : list (@aliased path)) (a : actorId)
+      (kId : constructorId) (cnArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
+  : @Program.constructorLookup P (inr a) kId (Program.cnDef cnArgs body)
+    -> typing_list (@aliased path) gamma args (Program.argValues cnArgs) gamma'
+    -> gamma |-{ rhs } constructorCall (inr a) kId args : (type (inr a) (base tag)) ==> gamma'
 where "G |-{ X } x : T ==> G'" := (typing X G x T G')
 with
 typing_list { P : Program.program } : forall (X : Type), context -> list X -> list ponyType -> context -> Prop :=

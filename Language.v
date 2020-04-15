@@ -1,3 +1,5 @@
+Add LoadPath "." as Pony.
+
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 
@@ -126,7 +128,7 @@ Inductive rhs : Type :=
   | fieldAssign (pf : fieldOfPath) (ap : @aliased path)
   | methodCall (rcvr : @aliased path) (m : methodId) (args : list (@aliased path))
   | behaviourCall (rcvr : @aliased path) (b : behaviourId) (args : list (@aliased path))
-  | constructorCall (rcvrType : ponyType) (k : constructorId) (args : list (@aliased path)).
+  | constructorCall (rcvrType : typeId) (k : constructorId) (args : list (@aliased path)).
 
 Inductive expression : Type :=
   | varDecl (x : var)
@@ -187,10 +189,15 @@ End DecidableActor.
 
 Require Import Coq.FSets.FMapInterface.
 
+From Pony Require Import ArrayMap.
+
 Module Program (Map : WSfun).
 
-Module VarMap := Map DecidableVar.
-Definition varMap := VarMap.t.
+Module ArrayVarMap := ArrayMap DecidableVar.
+Definition arrayVarMap := ArrayVarMap.t.
+
+Definition argValues (avMap : arrayVarMap Syntax.aliasedType) : list Syntax.ponyType :=
+  map Syntax.asPonyType (map snd (ArrayVarMap.elements avMap)).
 
 Module FieldMap := Map DecidableField.
 Definition fieldMap := FieldMap.t.
@@ -211,17 +218,17 @@ Module ActorMap := Map DecidableActor.
 Definition actorMap := ActorMap.t.
 
 Inductive constructorDef : Type :=
-  | cnDef (args : varMap Syntax.aliasedType) (body : Syntax.expressionSeq).
+  | cnDef (args : arrayVarMap Syntax.aliasedType) (body : Syntax.expressionSeq).
 
 Inductive methodDef : Type :=
   | mDef
       (receiverCap : Syntax.baseCapability)
-      (args : varMap Syntax.aliasedType)
+      (args : arrayVarMap Syntax.aliasedType)
       (returnType : Syntax.ponyType)
       (body : Syntax.expressionSeq).
 
 Inductive behaviourDef : Type :=
-  | bDef (args : varMap Syntax.aliasedType) (body : Syntax.expressionSeq).
+  | bDef (args : arrayVarMap Syntax.aliasedType) (body : Syntax.expressionSeq).
 
 Record classDef : Type :=
   cDef
@@ -247,5 +254,16 @@ Record program : Type :=
 Definition fieldLookup { p : program } (s : Syntax.typeId) (f : Syntax.fieldId) (t : Syntax.aliasedType) : Prop
   := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes p) /\ FieldMap.MapsTo f t (classFields cd)
       \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ FieldMap.MapsTo f t (actorFields ad).
+
+Definition methodLookup { p : program } (s : Syntax.typeId) (mId : Syntax.methodId) (mDef : methodDef) : Prop
+  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes p) /\ MethodMap.MapsTo mId mDef (classMethods cd)
+      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ MethodMap.MapsTo mId mDef (actorMethods ad).
+
+Definition behaviourLookup { p : program } (s : Syntax.typeId) (bId : Syntax.behaviourId) (bDef : behaviourDef) : Prop
+  := exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ BehaviourMap.MapsTo bId bDef (actorBehaviours ad).
+
+Definition constructorLookup { p : program } (s : Syntax.typeId) (kId : Syntax.constructorId) (kDef : constructorDef) : Prop
+  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes p) /\ ConstructorMap.MapsTo kId kDef (classConstructors cd)
+      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ ConstructorMap.MapsTo kId kDef (actorConstructors ad).
 
 End Program.

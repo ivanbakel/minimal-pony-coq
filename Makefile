@@ -41,7 +41,7 @@ HASNATDYNLINK     := $(COQMF_HASNATDYNLINK)
 OCAMLWARN         := $(COQMF_WARN)
 
 CoqMakefile.conf: 
-	coq_makefile -Q . Pony OTHERFLAGS = '-Q . Pony ' Language.v Typing.v Semantics.v Regions.v
+	coq_makefile -Q . Pony OTHERFLAGS = '-Q . Pony ' Language.v Typing.v Semantics.v Regions.v ArrayMap.v
 
 # This file can be created by the user to hook into double colon rules or
 # add any other Makefile code he may need
