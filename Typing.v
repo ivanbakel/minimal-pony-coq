@@ -282,6 +282,84 @@ typing_list { P : Program.program } : forall (X : Type), context -> list X -> li
 
 End Typing.
 
-Module WFExpressions.
+Require Import Coq.MSets.MSetInterface.
+
+Module WFExpressions (Map : WSfun) (SetM : WSetsOn).
+
+Module Typing := Typing Map.
+Include Typing.
+
+Module TempSet := SetM DecidableTemp.
+Definition tempSet := TempSet.t.
+
+Definition consumePath (p : path) : tempSet :=
+  match p with
+  | useTemp t => TempSet.singleton t
+  | _         => TempSet.empty
+  end.
+
+Definition consumeRhs (r : rhs) : tempSet :=
+  match r with
+  | rhsPath p => consumePath p
+  | fieldAssign (p, _) (aliasOf p') => TempSet.union (consumePath p) (consumePath p')
+  | methodCall (aliasOf rcvr) _ args =>
+      fold_left 
+        (fun consumed ap =>
+          match ap with
+          | aliasOf p => TempSet.union consumed (consumePath p)
+          end
+        )
+        args
+        (consumePath rcvr)
+  | behaviourCall (aliasOf rcvr) _ args =>
+      fold_left 
+        (fun consumed ap =>
+          match ap with
+          | aliasOf p => TempSet.union consumed (consumePath p)
+          end
+        )
+        args
+        (consumePath rcvr)
+  | constructorCall _ _ args =>
+      fold_left 
+        (fun consumed ap =>
+          match ap with
+          | aliasOf p => TempSet.union consumed (consumePath p)
+          end
+        )
+        args
+        TempSet.empty
+  end.
+
+
+Definition consumeExpr (e : expression) : tempSet :=
+  match e with
+  | varDecl _ => TempSet.empty
+  | assign _ (aliasOf r) => consumeRhs r
+  | tempAssign _ (p, _) => consumePath p
+  end.
+
+Inductive well_formed_expr { P : Program.program } : context -> expressionSeq -> ponyType -> Prop :=
+  | wf_return (gamma gamma' : context) (p : path) (t : ponyType)
+  : @typing P path gamma p t gamma'
+    -> well_formed_expr gamma (final p) t
+  | wf_vardecl (gamma gamma' : context) (x : var) (E : expressionSeq) (t t' : ponyType)
+  : @typing P expression gamma (varDecl x) t' gamma'
+    -> well_formed_expr gamma' E t
+    -> well_formed_expr gamma (seq (varDecl x) E) t
+  | wf_localassign (gamma gamma' : context) (x : var) (arhs : @aliased rhs) (E : expressionSeq) (t t' : ponyType)
+  : @typing P expression gamma (assign x arhs) t' gamma'
+    -> well_formed_expr gamma' E t
+    -> well_formed_expr gamma (seq (assign x arhs) E) t
+  | wf_tempassign_final (gamma gamma' : context) (t : temp) (pf : fieldOfPath) (p : path) (T T' : ponyType)
+  : @typing P expression gamma (tempAssign t pf) T' gamma'
+    -> well_formed_expr gamma' (final p) T
+    -> well_formed_expr gamma (seq (tempAssign t pf) (final p)) T
+  | wf_tempassign (gamma gamma' : context) (t : temp) (pf : fieldOfPath) (e : expression) (E : expressionSeq) (T T' : ponyType)
+  : @typing P expression gamma (tempAssign t pf) T' gamma'
+    -> TempSet.In t (consumeExpr e)
+    -> well_formed_expr gamma' (seq e E) T
+    -> well_formed_expr gamma (seq (tempAssign t pf) (seq e E)) T.
+
 
 End WFExpressions.
