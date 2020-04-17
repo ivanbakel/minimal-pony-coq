@@ -361,5 +361,53 @@ Inductive well_formed_expr { P : Program.program } : context -> expressionSeq ->
     -> well_formed_expr gamma' (seq e E) T
     -> well_formed_expr gamma (seq (tempAssign t pf) (seq e E)) T.
 
+(* For some method arguments, produce the corresponding typing context *)
+Definition argsToContext (args : arrayVarMap aliasedType) : context :=
+  ArrayVarMap.fold aliasedType (varTempMap aliasedType)
+    (fun key val ctxt => VarTempMap.add (inl key) val ctxt)
+    args
+    (VarTempMap.empty aliasedType).
+
+Definition well_formed_constructor_def { P : Program.program }
+  (thisType : aliasedType) (kD : constructorDef) : Prop
+  := forall args body, kD = cnDef args body
+        -> exists (t : ponyType),
+            @well_formed_expr P
+              (VarTempMap.add (inl this) thisType (argsToContext args))
+              body
+              t.
+
+Definition well_formed_method_def { P : Program.program }
+  (thisTypeId : typeId) (mD : methodDef) : Prop
+  := forall rcvrCap args returnType body, mD = mDef rcvrCap args returnType body
+        -> @well_formed_expr P
+            (VarTempMap.add (inl this) (aType thisTypeId rcvrCap) (argsToContext args))
+            body
+            returnType.
+
+Definition well_formed_behaviour_def { P : Program.program }
+  (thisTypeId : actorId) (bD : behaviourDef) : Prop
+  := forall args body, bD = bDef args body
+        -> exists (t : ponyType),
+            @well_formed_expr P
+              (VarTempMap.add (inl this) (aType (inr thisTypeId) iso) (argsToContext args))
+              body
+              t.
+
+Definition well_formed_class { P : Program.program } (c : classId) : Prop :=
+  (forall k kD, @constructorLookup P (inl c) k kD -> @well_formed_constructor_def P (aType (inl c) ref) kD)
+  /\
+  (forall m mD, @methodLookup P (inl c) m mD -> @well_formed_method_def P (inl c) mD).
+
+Definition well_formed_actor { P : Program.program } (a : actorId) : Prop :=
+  (forall k kD, @constructorLookup P (inr a) k kD -> @well_formed_constructor_def P (aType (inr a) iso) kD)
+  /\
+  (forall m mD, @methodLookup P (inr a) m mD -> @well_formed_method_def P (inr a) mD)
+  /\
+  (forall b bD, @behaviourLookup P (inr a) b bD -> @well_formed_behaviour_def P a bD).
+
+Definition well_formed_program (P : Program.program) : Prop :=
+  (forall a : actorId, @well_formed_actor P a)
+  /\ (forall c : classId, @well_formed_class P c).
 
 End WFExpressions.

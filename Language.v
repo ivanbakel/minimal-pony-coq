@@ -98,6 +98,12 @@ Definition hat (aT : aliasedType) : ponyType :=
 Inductive var : Type :=
   | variable : string -> var.
 
+Open Scope string_scope.
+
+Definition this : var := variable "this".
+
+Close Scope string_scope.
+
 Inductive temp : Type :=
   | temporary : string -> temp.
 
@@ -251,19 +257,19 @@ Record program : Type :=
   ; actors : actorMap actorDef
   }.
 
-Definition fieldLookup { p : program } (s : Syntax.typeId) (f : Syntax.fieldId) (t : Syntax.aliasedType) : Prop
-  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes p) /\ FieldMap.MapsTo f t (classFields cd)
-      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ FieldMap.MapsTo f t (actorFields ad).
+Definition fieldLookup { P : program } (s : Syntax.typeId) (f : Syntax.fieldId) (t : Syntax.aliasedType) : Prop
+  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes P) /\ FieldMap.MapsTo f t (classFields cd)
+      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors P) /\ FieldMap.MapsTo f t (actorFields ad).
 
-Definition methodLookup { p : program } (s : Syntax.typeId) (mId : Syntax.methodId) (mDef : methodDef) : Prop
-  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes p) /\ MethodMap.MapsTo mId mDef (classMethods cd)
-      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ MethodMap.MapsTo mId mDef (actorMethods ad).
+Definition methodLookup { P : program } (s : Syntax.typeId) (mId : Syntax.methodId) (mDef : methodDef) : Prop
+  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes P) /\ MethodMap.MapsTo mId mDef (classMethods cd)
+      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors P) /\ MethodMap.MapsTo mId mDef (actorMethods ad).
 
-Definition behaviourLookup { p : program } (s : Syntax.typeId) (bId : Syntax.behaviourId) (bDef : behaviourDef) : Prop
-  := exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ BehaviourMap.MapsTo bId bDef (actorBehaviours ad).
+Definition behaviourLookup { P : program } (s : Syntax.typeId) (bId : Syntax.behaviourId) (bDef : behaviourDef) : Prop
+  := exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors P) /\ BehaviourMap.MapsTo bId bDef (actorBehaviours ad).
 
-Definition constructorLookup { p : program } (s : Syntax.typeId) (kId : Syntax.constructorId) (kDef : constructorDef) : Prop
-  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes p) /\ ConstructorMap.MapsTo kId kDef (classConstructors cd)
-      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors p) /\ ConstructorMap.MapsTo kId kDef (actorConstructors ad).
+Definition constructorLookup { P : program } (s : Syntax.typeId) (kId : Syntax.constructorId) (kDef : constructorDef) : Prop
+  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes P) /\ ConstructorMap.MapsTo kId kDef (classConstructors cd)
+      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors P) /\ ConstructorMap.MapsTo kId kDef (actorConstructors ad).
 
 End Program.
