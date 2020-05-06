@@ -145,4 +145,9 @@ Definition HeapFieldLookup (v : value) (f : Syntax.fieldId) (v' : value) (chi : 
   \/
   ( exists iota o, v = Some iota /\ HeapMapsTo object iota o chi /\ FieldMap.MapsTo f v' (objectFields o) ).
 
+Inductive HeapFieldAdd : value -> Syntax.fieldId -> value -> heap -> heap -> Prop :=
+  | HeapFieldAdd_null (f : Syntax.fieldId) (chi : heap)
+  : HeapFieldAdd None f None chi chi.
+  (* TODO: add the other cases *)
+
 End Heap.
