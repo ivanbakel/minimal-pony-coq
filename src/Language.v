@@ -1,5 +1,3 @@
-Add LoadPath "." as Pony.
-
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 

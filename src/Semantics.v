@@ -1,4 +1,3 @@
-Add LoadPath "." as Pony.
 From Pony Require Import Language Heap.
 
 Require Import Coq.FSets.FMapInterface.
@@ -53,13 +52,21 @@ evaluatesTo_list { P : Program.program } : forall (X : Type), heap -> localVars 
     -> evaluatesTo_list X chi' L' lx chi'' L'' lv
     -> evaluatesTo_list X chi L (x :: lx) chi'' L'' (v :: lv).
 
+Axiom fieldOfPath_ne_path : Syntax.fieldOfPath <> Syntax.path.
+Axiom aliased_ne_path : forall X : Type, @Syntax.aliased X <> Syntax.path.
+Axiom expr_ne_path : Syntax.expression <> Syntax.path. 
+Axiom rhs_ne_path : Syntax.rhs <> Syntax.path. 
+
 Lemma paths_dont_change_heap { P : Program.program } : forall chi chi' L L' p v, @evaluatesTo P Syntax.path chi L p chi' L' v -> chi = chi'.
 Proof.
   intros.
   inversion H; try reflexivity.
   (* TODO: get axioms for these inequalities *)
-  admit.
-  admit.
-  Admitted.
+  contradict H0; apply fieldOfPath_ne_path.
+  contradict H0; apply aliased_ne_path.
+  contradict H0; apply expr_ne_path.
+  contradict H0; apply rhs_ne_path.
+  contradict H0; apply rhs_ne_path.
+  Qed.
 
 End Semantics.

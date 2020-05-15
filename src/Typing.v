@@ -1,4 +1,3 @@
-Add LoadPath "." as Pony.
 From Pony Require Import Language.
 
 Require Import Coq.FSets.FMapInterface.

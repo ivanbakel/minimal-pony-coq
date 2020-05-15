@@ -1,1 +1,2 @@
--Q . Pony
+-R src Pony
+-R vendor/coq-project-template/src Example

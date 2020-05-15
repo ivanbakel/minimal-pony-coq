@@ -1,4 +1,3 @@
-Add LoadPath "." as Pony.
 From Pony Require Import Language.
 
 Require Import Coq.FSets.FMapInterface.
@@ -108,7 +107,10 @@ Record heap : Type :=
   ; frames : frameMap frame
   }.
 
-Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
+Definition updateActors (a : actorMap actor) (chi : heap) : heap :=
+  heapAlloc a (objects chi) (messages chi) (frames chi) .
+
+Notation "'someActorAddr' iota" := (inl (inl (inl iota))) (at level 80).
 Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
 Definition someMessageAddr (iota : messageAddr) : someAddr := (inl (inr iota)).
 Definition someFrameAddr (iota : frameAddr) : someAddr := (inr iota).
@@ -145,9 +147,10 @@ Definition HeapFieldLookup (v : value) (f : Syntax.fieldId) (v' : value) (chi : 
   \/
   ( exists iota o, v = Some iota /\ HeapMapsTo object iota o chi /\ FieldMap.MapsTo f v' (objectFields o) ).
 
+(* Insert the second value into the field mapping of the first value at the given field id *)
 Inductive HeapFieldAdd : value -> Syntax.fieldId -> value -> heap -> heap -> Prop :=
-  | HeapFieldAdd_null (f : Syntax.fieldId) (chi : heap)
-  : HeapFieldAdd None f None chi chi.
+  | HeapFieldAdd_null (f : Syntax.fieldId) (v : value) (chi : heap)
+  : HeapFieldAdd None f v chi chi.
   (* TODO: add the other cases *)
 
 End Heap.
