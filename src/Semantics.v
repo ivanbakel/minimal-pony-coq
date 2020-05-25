@@ -1,15 +1,17 @@
-From Pony Require Import Language Heap.
+From Pony Require Import Language Typing Heap.
 
 Require Import Coq.FSets.FMapInterface.
+Require Import Coq.MSets.MSetInterface.
 
-Module Semantics (Map : WSfun).
+Module Semantics (Map : WSfun) (SetM : WSetsOn).
 
-Module Program := Program Map.
+(* Here only to have a single chain of module inclusions *)
+Module WFExpr := WFExpressions Map SetM.
 
 Module Heap := Heap Map.
 Include Heap.
 
-Inductive evaluatesTo { P : Program.program } : forall (X : Type), heap -> localVars -> X -> heap -> localVars -> value -> Prop :=
+Inductive evaluatesTo { P : WFExpr.Program.program } : forall (X : Type), heap -> localVars -> X -> heap -> localVars -> value -> Prop :=
   | eval_local (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
   : VarMap.MapsTo x v L
     -> evaluatesTo Syntax.path chi L (Syntax.use x) chi L v
@@ -44,7 +46,7 @@ Inductive evaluatesTo { P : Program.program } : forall (X : Type), heap -> local
     -> False (*TODO: append message to queue *)
     -> evaluatesTo Syntax.rhs chi L (Syntax.behaviourCall rcvr b args) chi'' L'' rcvrVal
 with
-evaluatesTo_list { P : Program.program } : forall (X : Type), heap -> localVars -> list X -> heap -> localVars -> list value -> Prop :=
+evaluatesTo_list { P : WFExpr.Program.program } : forall (X : Type), heap -> localVars -> list X -> heap -> localVars -> list value -> Prop :=
   | evaluatesTo_list_nil (X : Type) (chi : heap) (L : localVars)
   : evaluatesTo_list X chi L nil chi L nil
   | evaluatesTo_list_cons (X: Type) (chi chi' chi'' : heap) (L L' L'' : localVars) (x : X) (lx : list X) (v : value) (lv : list value)
@@ -57,7 +59,7 @@ Axiom aliased_ne_path : forall X : Type, @Syntax.aliased X <> Syntax.path.
 Axiom expr_ne_path : Syntax.expression <> Syntax.path. 
 Axiom rhs_ne_path : Syntax.rhs <> Syntax.path. 
 
-Lemma paths_dont_change_heap { P : Program.program } : forall chi chi' L L' p v, @evaluatesTo P Syntax.path chi L p chi' L' v -> chi = chi'.
+Lemma paths_dont_change_heap { P : WFExpr.Program.program } : forall chi chi' L L' p v, @evaluatesTo P Syntax.path chi L p chi' L' v -> chi = chi'.
 Proof.
   intros.
   inversion H; try reflexivity.

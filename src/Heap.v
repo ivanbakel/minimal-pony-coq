@@ -110,7 +110,9 @@ Record heap : Type :=
 Definition updateActors (a : actorMap actor) (chi : heap) : heap :=
   heapAlloc a (objects chi) (messages chi) (frames chi) .
 
-Notation "'someActorAddr' iota" := (inl (inl (inl iota))) (at level 80).
+
+
+Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
 Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
 Definition someMessageAddr (iota : messageAddr) : someAddr := (inl (inr iota)).
 Definition someFrameAddr (iota : frameAddr) : someAddr := (inr iota).
@@ -153,4 +155,27 @@ Inductive HeapFieldAdd : value -> Syntax.fieldId -> value -> heap -> heap -> Pro
   : HeapFieldAdd None f v chi chi.
   (* TODO: add the other cases *)
 
+(* Types in the heap *)
+
+(* Module temporarily disabled for type reasons *)
+
+(*Module HeapTyping (Map : WSfun).
+
+Include Heap Map.*)
+
+Inductive heapTyping : value -> Syntax.typeId -> heap -> Prop :=
+  | heaptyp_object (iota : someAddr) (obj : object) (C : Syntax.classId) (chi : heap)
+  : HeapMapsTo object iota obj chi
+    -> objectId obj = C
+    -> heapTyping (Some iota) (Syntax.classTypeId C) chi
+  | heaptyp_actor (iota : someAddr) (act : actor) (A : Syntax.actorId) (chi : heap)
+  : HeapMapsTo actor iota act chi
+    -> actorId act = A
+    -> heapTyping (Some iota) (Syntax.actorTypeId A) chi
+  | heaptyp_null (S : Syntax.typeId) (chi : heap)
+  : heapTyping None S chi.
+
+(*End HeapTyping.*)
+
 End Heap.
+

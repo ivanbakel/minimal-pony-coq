@@ -75,6 +75,9 @@ Inductive actorId : Type :=
 
 Definition typeId : Type := classId + actorId.
 
+Definition classTypeId (C : classId) : typeId := (inl C).
+Definition actorTypeId (A : actorId) : typeId := (inr A).
+
 Inductive ponyType : Type :=
   | type (s : typeId) (k : capability).
 
