@@ -23,4 +23,7 @@ Definition addVar { E : Type } (var : Syntax.var) (e : E) (m : t E) : t E :=
 Definition removeVar { E : Type } (var : Syntax.var) (m : t E) : t E :=
   VarTempMap.remove (inl var) m.
 
+Definition removeTemp { E : Type } (temp : Syntax.temp) (m : t E) : t E :=
+  VarTempMap.remove (inr temp) m.
+
 End LocalMap.

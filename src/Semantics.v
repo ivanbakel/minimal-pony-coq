@@ -15,6 +15,9 @@ Inductive evaluatesTo { P : WFExpr.Program.program } : forall (X : Type), heap -
   | eval_local (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
   : LocalMap.VarMapsTo x v L
     -> evaluatesTo Syntax.path chi L (Syntax.use x) chi L v
+  | eval_temp (chi : heap) (L : localVars) (t : Syntax.temp) (v : value)
+  : LocalMap.TempMapsTo t v L
+    -> evaluatesTo Syntax.path chi L (Syntax.useTemp t) chi (LocalMap.removeTemp t L) v
   | eval_consume (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
   : LocalMap.VarMapsTo x v L
     -> evaluatesTo Syntax.path chi L (Syntax.consume x) chi (LocalMap.removeVar x L) v
