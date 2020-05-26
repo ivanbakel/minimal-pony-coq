@@ -69,7 +69,7 @@ Module LocalMap := LocalMap Map.
 
 Definition value : Type := someAddr?.
 
-Definition localVars : Type := LocalMap.t value.
+Definition localVars : Type := LocalMap.t value value.
 
 Record actor : Type :=
   actorAlloc

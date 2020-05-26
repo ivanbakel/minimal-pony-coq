@@ -4,26 +4,32 @@ Require Import Coq.FSets.FMapInterface.
 
 Module LocalMap (Map : WSfun).
 
-Module VarTempMap := Map DecidableVarTemp.
+Module VarMap := Map DecidableVar.
+Module TempMap := Map DecidableTemp.
 
-Include VarTempMap.
+Definition t (X Y : Type) : Type := ((VarMap.t X) * (TempMap.t Y)).
 
-Definition VarMapsTo { E : Type } (var : Syntax.var) (e : E) (m : t E) : Prop :=
-  VarTempMap.MapsTo (inl var) e m.
+Definition VarMapsTo { E F : Type } (var : Syntax.var) (e : E) (m : t E F) : Prop :=
+  VarMap.MapsTo var e (fst m).
 
-Definition TempMapsTo { E : Type } (temp : Syntax.temp) (e : E) (m : t E) : Prop :=
-  VarTempMap.MapsTo (inr temp) e m.
+Definition TempMapsTo { E F : Type } (temp : Syntax.temp) (f : F) (m : t E F) : Prop :=
+  TempMap.MapsTo temp f (snd m).
 
-Definition VarIn { E : Type } (var : Syntax.var) (m : t E) : Prop :=
-  VarTempMap.In (inl var) m.
+Definition VarIn { E F : Type } (var : Syntax.var) (m : t E F) : Prop :=
+  VarMap.In var (fst m).
 
-Definition addVar { E : Type } (var : Syntax.var) (e : E) (m : t E) : t E :=
-  VarTempMap.add (inl var) e m.
+Definition addVar { E F : Type } (var : Syntax.var) (e : E) (m : t E F) : t E F :=
+  (VarMap.add var e (fst m), snd m).
 
-Definition removeVar { E : Type } (var : Syntax.var) (m : t E) : t E :=
-  VarTempMap.remove (inl var) m.
+Definition removeVar { E F : Type } (var : Syntax.var) (m : t E F) : t E F :=
+  (VarMap.remove var (fst m), snd m).
 
-Definition removeTemp { E : Type } (temp : Syntax.temp) (m : t E) : t E :=
-  VarTempMap.remove (inr temp) m.
+Definition removeTemp { E F : Type } (temp : Syntax.temp) (m : t E F) : t E F :=
+  (fst m, TempMap.remove temp (snd m)).
+
+Definition empty (E F : Type) : t E F := (VarMap.empty E, TempMap.empty F).
+
+Definition fold_var { E F B : Type } (f : Syntax.var -> E -> B -> B) (m : t E F) (init : B) : B
+  := VarMap.fold f (fst m) init.
 
 End LocalMap.

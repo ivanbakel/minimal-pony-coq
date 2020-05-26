@@ -10,19 +10,19 @@ Include Syntax.
 Module LocalMap := LocalMap Map.
 Include LocalMap.
 
-Definition context : Type := (LocalMap.t aliasedType).
+Definition context : Type := (LocalMap.t aliasedType ponyType).
 
 Definition sendableCtxt (gamma : context) : context :=
-  LocalMap.fold
+  LocalMap.fold_var
     (fun var varType sendableMap =>
       match varType with
       | aType _ b =>
           if isSendable b
-            then LocalMap.add var varType sendableMap
+            then LocalMap.addVar var varType sendableMap
             else sendableMap
       end)
-    (LocalMap.empty aliasedType)
-    gamma.
+    gamma
+    (LocalMap.empty aliasedType ponyType).
 
 End Context.
 
@@ -339,17 +339,17 @@ Inductive well_formed_expr { P : Program.program } : context -> expressionSeq ->
 
 (* For some method arguments, produce the corresponding typing context *)
 Definition argsToContext (args : arrayVarMap aliasedType) : context :=
-  ArrayVarMap.fold aliasedType (LocalMap.t aliasedType)
-    (fun key val ctxt => VarTempMap.add (inl key) val ctxt)
+  ArrayVarMap.fold aliasedType (LocalMap.t aliasedType ponyType)
+    (fun key val ctxt => LocalMap.addVar key val ctxt)
     args
-    (VarTempMap.empty aliasedType).
+    (LocalMap.empty aliasedType ponyType).
 
 Definition well_formed_constructor_def { P : Program.program }
   (thisType : aliasedType) (kD : constructorDef) : Prop
   := forall args body, kD = cnDef args body
         -> exists (t : ponyType),
             @well_formed_expr P
-              (VarTempMap.add (inl this) thisType (argsToContext args))
+              (LocalMap.addVar this thisType (argsToContext args))
               body
               t.
 
@@ -357,7 +357,7 @@ Definition well_formed_method_def { P : Program.program }
   (thisTypeId : typeId) (mD : methodDef) : Prop
   := forall rcvrCap args returnType body, mD = mDef rcvrCap args returnType body
         -> @well_formed_expr P
-            (VarTempMap.add (inl this) (aType thisTypeId rcvrCap) (argsToContext args))
+            (LocalMap.addVar this (aType thisTypeId rcvrCap) (argsToContext args))
             body
             returnType.
 
@@ -366,7 +366,7 @@ Definition well_formed_behaviour_def { P : Program.program }
   := forall args body, bD = bDef args body
         -> exists (t : ponyType),
             @well_formed_expr P
-              (VarTempMap.add (inl this) (aType (inr thisTypeId) iso) (argsToContext args))
+              (LocalMap.addVar this (aType (inr thisTypeId) iso) (argsToContext args))
               body
               t.
 
