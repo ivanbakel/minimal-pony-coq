@@ -21,6 +21,9 @@ Definition VarIn { E F : Type } (var : Syntax.var) (m : t E F) : Prop :=
 Definition addVar { E F : Type } (var : Syntax.var) (e : E) (m : t E F) : t E F :=
   (VarMap.add var e (fst m), snd m).
 
+Definition addTemp { E F : Type } (temp : Syntax.temp) (f : F) (m : t E F) : t E F :=
+  (fst m, TempMap.add temp f (snd m)).
+
 Definition removeVar { E F : Type } (var : Syntax.var) (m : t E F) : t E F :=
   (VarMap.remove var (fst m), snd m).
 

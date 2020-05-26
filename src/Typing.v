@@ -196,6 +196,9 @@ Inductive typing { P : Program.program } : forall ( X : Type), context -> X -> p
   | path_var (gamma : context) (x : var) (aT : aliasedType) 
   : VarMapsTo x aT gamma 
       -> gamma |-{ path } (use x) : asPonyType aT ==> gamma
+  | path_temp (gamma : context) (t : temp) (T : ponyType)
+  : TempMapsTo t T gamma
+      -> gamma |-{ path } (useTemp t) : T ==> gamma
   | path_consume (gamma : context) (x : var) (aT : aliasedType)
   : VarMapsTo x aT gamma
       -> gamma |-{ path } (consume x) : asPonyType aT ==> (removeVar x gamma)
@@ -216,6 +219,9 @@ Inductive typing { P : Program.program } : forall ( X : Type), context -> X -> p
   : gamma |-{ @aliased rhs } arhs : asPonyType aT ==> gamma
     -> VarMapsTo x aT gamma'
     -> gamma |-{ expression } assign x arhs : hat aT ==> gamma'
+  | expr_tempassign (gamma gamma' : context) (t : temp) (pf : fieldOfPath) (T : ponyType)
+  : gamma |-{ fieldOfPath } pf : T ==> gamma'
+    -> gamma |-{ expression} tempAssign t pf : T ==> (LocalMap.addTemp t T gamma')
   | expr_fieldassign (gamma gamma' gamma'' : context) (p p' : path) (f : fieldId) (s s' : typeId) (k k' : capability) (b b' : baseCapability)
   : gamma |-{ aliased } (aliasOf p') : (type s' (base b)) ==> gamma'
       -> gamma' |-{ path } p : (type s k) ==> gamma''
