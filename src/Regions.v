@@ -103,7 +103,7 @@ Inductive values_typed (chi : heap) (r : regPart chi) (iota : someAddr) : list v
 Inductive well_formed_message { p : Program.program } (chi : heap) (r : regPart chi) : option messageAddr -> Syntax.actorId -> Prop :=
   | wf_message (iota : messageAddr) (rcvrId : Syntax.actorId) (bId : Syntax.behaviourId) (mArgs : list value) (mNext : option messageAddr)
       (bArgs : Program.arrayVarMap Syntax.aliasedType) (bBody : Syntax.expressionSeq)
-  : HeapMapsTo message (someMessageAddr iota) (messageAlloc bId rcvrId mArgs mNext) chi
+  : HeapMapsTo message (someMessageAddr iota) (messageAlloc bId mArgs mNext) chi
     -> @Program.behaviourLookup p (inr rcvrId)  bId (Program.bDef bArgs bBody) 
     -> perspJudgement chi r (someMessageAddr iota) next (option_map someMessageAddr mNext) Syntax.iso
     -> values_typed chi r (someMessageAddr iota)

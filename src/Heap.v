@@ -99,10 +99,11 @@ Definition addObjectField (f : Syntax.fieldId) (v : value) (o : object) : object
 Record message : Type :=
   messageAlloc
   { messageId : Syntax.behaviourId
-  ; receiverId : Syntax.actorId
   ; messageArgs : list value
   ; nextMessage : messageAddr?
   }.
+
+Instance setMessage : Settable _ := settable! messageAlloc <messageId; messageArgs; nextMessage>.
 
 Record frame : Type :=
   frameAlloc
@@ -128,6 +129,9 @@ Definition addActor (iota : actorAddr) (a : actor) (chi : heap) : heap :=
 Definition addObject (iota : objectAddr) (o : object) (chi : heap) : heap :=
   chi <|objects := (ObjectMap.add iota o (objects chi))|>.
 
+Definition addMessage (iota : messageAddr) (m : message) (chi : heap) : heap :=
+  chi <|messages := (MessageMap.add iota m (messages chi))|>.
+
 Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
 Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
 Definition someMessageAddr (iota : messageAddr) : someAddr := (inl (inr iota)).
@@ -150,6 +154,8 @@ Inductive HeapMapsTo : forall X : Type, someAddr -> X -> heap -> Prop :=
 Definition HeapIn (iota : someAddr) (chi : heap) : Prop :=
   exists X : Type, exists x : X, HeapMapsTo X iota x chi.
 
+Definition HeapFresh (iota : someAddr) (chi : heap) := ~ HeapIn iota chi.
+
 Definition HeapAddrType (iota : someAddr) (s : Syntax.typeId) (chi : heap) : Prop :=
   exists a F mQ fS, inr a = s /\ HeapMapsTo actor iota (actorAlloc a F mQ fS) chi
   \/
@@ -157,6 +163,7 @@ Definition HeapAddrType (iota : someAddr) (s : Syntax.typeId) (chi : heap) : Pro
 
 Definition HeapValueType (v : value) (s : Syntax.typeId) (chi : heap) : Prop :=
   forall iota, v = Some iota -> HeapAddrType iota s chi.
+
 
 Definition HeapFieldLookup (v : value) (f : Syntax.fieldId) (v' : value) (chi : heap) : Prop :=
   ( v = None /\ v' = None )
@@ -176,6 +183,31 @@ Inductive HeapFieldAdd : value -> Syntax.fieldId -> value -> heap -> heap -> Pro
   : HeapMapsTo object (someObjectAddr iota) o chi
     -> HeapFieldAdd (Some (someObjectAddr iota)) f v chi (addObject iota o chi).
 
+Inductive HeapMessageAppend : value -> Syntax.behaviourId -> list value -> heap -> heap -> Prop :=
+  | HeapMessageAppend_null (b : Syntax.behaviourId) (A : list value) (chi : heap)
+  : HeapMessageAppend None b A chi chi
+  | HeapMessageAppend_noqueue (iota : actorAddr) (a : actor) (b : Syntax.behaviourId) (A : list value) (chi : heap) (freshAddr : messageAddr)
+  : messageQueue a = None
+    -> HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapFresh (someMessageAddr freshAddr) chi
+    -> HeapMessageAppend (Some (someActorAddr iota)) b A chi (addActor iota (a <| messageQueue := (Some freshAddr) |>) (addMessage freshAddr (messageAlloc b A None) chi))
+  | HeapMessageAppend_queue (iota : actorAddr) (iota_m : messageAddr) (a : actor) (b : Syntax.behaviourId) (A : list value) (chi chi' : heap)
+  : messageQueue a = Some iota_m 
+    -> HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapMessageAppendQueue iota_m b A chi chi'
+    -> HeapMessageAppend (Some (someActorAddr iota)) b A chi chi'
+with
+HeapMessageAppendQueue : messageAddr -> Syntax.behaviourId -> list value -> heap -> heap -> Prop :=
+  | HeapMessageAppendQueue_end (iota freshAddr : messageAddr) (m : message) (b : Syntax.behaviourId) (A : list value) (chi : heap)
+  : nextMessage m = None
+    -> HeapMapsTo message (someMessageAddr iota) m chi
+    -> HeapFresh (someMessageAddr freshAddr) chi
+    -> HeapMessageAppendQueue iota b A chi (addMessage iota (m <| nextMessage := (Some freshAddr) |>) (addMessage freshAddr (messageAlloc b A None) chi))
+  | HeapMessageAppendQueue_cons (iota iota' : messageAddr) (m : message) (b : Syntax.behaviourId) (A : list value) (chi chi' : heap)
+  : nextMessage m = Some iota'
+    -> HeapMapsTo message (someMessageAddr iota) m chi
+    -> HeapMessageAppendQueue iota' b A chi chi'
+    -> HeapMessageAppendQueue iota b A chi chi'.
 (* Types in the heap *)
 
 (* Module temporarily disabled for type reasons *)

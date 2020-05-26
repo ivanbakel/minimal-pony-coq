@@ -1,2 +1,2 @@
 -R src Pony
--R vendor/coq-project-template/src Example
+-R vendor/coq-record-update/src RecordUpdate
