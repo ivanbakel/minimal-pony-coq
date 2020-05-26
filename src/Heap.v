@@ -1,5 +1,8 @@
 From Pony Require Import Language.
 
+From RecordUpdate Require Import RecordSet.
+Import RecordSetNotations.
+
 Require Import Coq.FSets.FMapInterface.
 Require Import Coq.Structures.Equalities.
 
@@ -77,11 +80,21 @@ Record actor : Type :=
   ; frameStack : frameAddr?
   }.
 
+Instance setActor : Settable _ := settable! actorAlloc <actorId; actorFields; messageQueue; frameStack>.
+
+Definition addActorField (f : Syntax.fieldId) (v : value) (a : actor) : actor :=
+  a <|actorFields := (FieldMap.add f v (actorFields a))|>.
+
 Record object : Type :=
   objectAlloc
   { objectId : Syntax.classId
   ; objectFields : fieldMap value
   }.
+
+Instance setObject : Settable _ := settable! objectAlloc <objectId; objectFields>.
+
+Definition addObjectField (f : Syntax.fieldId) (v : value) (o : object) : object :=
+  o <|objectFields := (FieldMap.add f v (objectFields o))|>.
 
 Record message : Type :=
   messageAlloc
@@ -107,10 +120,13 @@ Record heap : Type :=
   ; frames : frameMap frame
   }.
 
-Definition updateActors (a : actorMap actor) (chi : heap) : heap :=
-  heapAlloc a (objects chi) (messages chi) (frames chi) .
+Instance setHeap : Settable _ := settable! heapAlloc <actors; objects; messages; frames>.
 
+Definition addActor (iota : actorAddr) (a : actor) (chi : heap) : heap :=
+  chi <|actors := (ActorMap.add iota a (actors chi))|>.
 
+Definition addObject (iota : objectAddr) (o : object) (chi : heap) : heap :=
+  chi <|objects := (ObjectMap.add iota o (objects chi))|>.
 
 Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
 Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
@@ -152,8 +168,13 @@ Definition HeapFieldLookup (v : value) (f : Syntax.fieldId) (v' : value) (chi : 
 (* Insert the second value into the field mapping of the first value at the given field id *)
 Inductive HeapFieldAdd : value -> Syntax.fieldId -> value -> heap -> heap -> Prop :=
   | HeapFieldAdd_null (f : Syntax.fieldId) (v : value) (chi : heap)
-  : HeapFieldAdd None f v chi chi.
-  (* TODO: add the other cases *)
+  : HeapFieldAdd None f v chi chi
+  | HeapFieldAdd_actor (iota : actorAddr) (a : actor) (f : Syntax.fieldId) (v : value) (chi : heap)
+  : HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapFieldAdd (Some (someActorAddr iota)) f v chi (addActor iota a chi)
+  | HeapFieldAdd_object (iota : objectAddr) (o : object) (f : Syntax.fieldId) (v : value) (chi : heap)
+  : HeapMapsTo object (someObjectAddr iota) o chi
+    -> HeapFieldAdd (Some (someObjectAddr iota)) f v chi (addObject iota o chi).
 
 (* Types in the heap *)
 
