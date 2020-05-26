@@ -1,4 +1,4 @@
-From Pony Require Import Language.
+From Pony Require Import Language LocalMap.
 
 From RecordUpdate Require Import RecordSet.
 Import RecordSetNotations.
@@ -65,12 +65,11 @@ Definition frameMap := FrameMap.t.
 Module FieldMap := Map DecidableField.
 Definition fieldMap := FieldMap.t.
 
-Module VarMap := Map DecidableVar.
-Definition varMap := VarMap.t.
+Module LocalMap := LocalMap Map.
 
 Definition value : Type := someAddr?.
 
-Definition localVars : Type := varMap value.
+Definition localVars : Type := LocalMap.t value.
 
 Record actor : Type :=
   actorAlloc

@@ -13,11 +13,11 @@ Include Heap.
 
 Inductive evaluatesTo { P : WFExpr.Program.program } : forall (X : Type), heap -> localVars -> X -> heap -> localVars -> value -> Prop :=
   | eval_local (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
-  : VarMap.MapsTo x v L
+  : LocalMap.VarMapsTo x v L
     -> evaluatesTo Syntax.path chi L (Syntax.use x) chi L v
   | eval_consume (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
-  : VarMap.MapsTo x v L
-    -> evaluatesTo Syntax.path chi L (Syntax.consume x) chi (VarMap.remove x L) v
+  : LocalMap.VarMapsTo x v L
+    -> evaluatesTo Syntax.path chi L (Syntax.consume x) chi (LocalMap.removeVar x L) v
   | eval_field (chi chi' : heap) (L L' : localVars) (p : Syntax.path) (f : Syntax.fieldId) (v v' : value)
   : evaluatesTo Syntax.path chi L p chi' L' v
     -> HeapFieldLookup v f v' chi'
@@ -26,11 +26,11 @@ Inductive evaluatesTo { P : WFExpr.Program.program } : forall (X : Type), heap -
   : evaluatesTo X chi L x chi' L' v
     -> evaluatesTo (@Syntax.aliased X) chi L (Syntax.aliasOf x) chi' L' v
   | eval_vardecl (chi : heap) (L : localVars) (x : Syntax.var)
-  : evaluatesTo Syntax.expression chi L (Syntax.varDecl x) chi (VarMap.add x None L) None
+  : evaluatesTo Syntax.expression chi L (Syntax.varDecl x) chi (LocalMap.addVar x None L) None
   | eval_localassign (chi chi' : heap) (L L' : localVars) (x : Syntax.var) (arhs : @Syntax.aliased Syntax.rhs) (v v' : value)
   : evaluatesTo Syntax.aliased chi L arhs chi' L' v
-    -> VarMap.MapsTo x v' L'
-    -> evaluatesTo Syntax.expression chi L (Syntax.assign x arhs) chi' (VarMap.add x v L') v'
+    -> LocalMap.VarMapsTo x v' L'
+    -> evaluatesTo Syntax.expression chi L (Syntax.assign x arhs) chi' (LocalMap.addVar x v L') v'
   | eval_fieldassign (chi chi' chi'' chi''' : heap) (L L' L'' : localVars) (p : Syntax.path) (f : Syntax.fieldId)
     (ap : @Syntax.aliased Syntax.path) (u v v' : value)
   : evaluatesTo Syntax.aliased chi L ap chi' L' v

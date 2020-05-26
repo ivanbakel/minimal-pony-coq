@@ -26,7 +26,7 @@ Theorem result1 :
         forall b : Syntax.baseCapability,
         forall v' : Sem.value,
           Sem.WFExpr.VarMapsTo x (Syntax.aType S' b) gamma
-          -> Sem.VarMap.MapsTo x v' L
+          -> Sem.LocalMap.VarMapsTo x v' L
           -> Sem.heapTyping v' S' chi)
     -> @Sem.evaluatesTo P Syntax.expression chi L e chi' L' v
     -> Sem.heapTyping v S chi'

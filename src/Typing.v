@@ -1,51 +1,28 @@
-From Pony Require Import Language.
+From Pony Require Import Language LocalMap.
 
 Require Import Coq.FSets.FMapInterface.
 Require Import Coq.Structures.Equalities.
 
 Module Context (Map : WSfun).
 
-Module VarTempMap := Map DecidableVarTemp.
-Definition varTempMap := VarTempMap.t.
-
 Include Syntax.
 
-Definition context : Type := (varTempMap aliasedType).
+Module LocalMap := LocalMap Map.
+Include LocalMap.
 
-Definition contextKey : Type := VarTempMap.key.
+Definition context : Type := (LocalMap.t aliasedType).
 
 Definition sendableCtxt (gamma : context) : context :=
-  VarTempMap.fold
+  LocalMap.fold
     (fun var varType sendableMap =>
       match varType with
       | aType _ b =>
           if isSendable b
-            then VarTempMap.add var varType sendableMap
+            then LocalMap.add var varType sendableMap
             else sendableMap
       end)
-    (VarTempMap.empty aliasedType)
+    (LocalMap.empty aliasedType)
     gamma.
-
-Definition VarMapsTo (var : var) (aT : aliasedType) (gamma : context) : Prop :=
-  VarTempMap.MapsTo (inl var) aT gamma.
-
-Definition TempMapsTo (temp : temp) (aT : aliasedType) (gamma : context) : Prop :=
-  VarTempMap.MapsTo (inr temp) aT gamma.
-
-Definition VarIn (var : var) (gamma : context) : Prop :=
-  VarTempMap.In (inl var) gamma.
-
-Definition addVar (var : var) (aT : aliasedType) (gamma : context) : context :=
-  VarTempMap.add (inl var) aT gamma.
-
-Definition removeVar (var : var) (gamma : context) : context :=
-  VarTempMap.remove (inl var) gamma.
-
-Fixpoint removeMany (keys : list contextKey) (gamma : context) :=
-  match keys with
-  | h :: t => VarTempMap.remove h (removeMany t gamma)
-  | nil => gamma
-  end.
 
 End Context.
 
@@ -362,7 +339,7 @@ Inductive well_formed_expr { P : Program.program } : context -> expressionSeq ->
 
 (* For some method arguments, produce the corresponding typing context *)
 Definition argsToContext (args : arrayVarMap aliasedType) : context :=
-  ArrayVarMap.fold aliasedType (varTempMap aliasedType)
+  ArrayVarMap.fold aliasedType (LocalMap.t aliasedType)
     (fun key val ctxt => VarTempMap.add (inl key) val ctxt)
     args
     (VarTempMap.empty aliasedType).

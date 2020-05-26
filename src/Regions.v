@@ -117,7 +117,7 @@ Inductive well_formed_message { p : Program.program } (chi : heap) (r : regPart 
 
 Inductive well_formed_frame (chi : heap) (r : regPart chi) : option frameAddr -> Prop :=
   (* TODO: This is not complete *)
-  | wf_frame_top (iota : frameAddr) (gamma : Typing.context) (L : varMap value) (E : Syntax.expressionSeq) (v_super : frameAddr?)
+  | wf_frame_top (iota : frameAddr) (gamma : Typing.context) (L : localVars) (E : Syntax.expressionSeq) (v_super : frameAddr?)
   : HeapMapsTo frame (someFrameAddr iota) (frameAlloc L E None v_super) chi
     -> False (* TODO: check local variables are well-typed w.r.t. something *)
     -> False (* TODO: check the return type is good for the superframe *)
@@ -127,7 +127,7 @@ Inductive well_formed_frame (chi : heap) (r : regPart chi) : option frameAddr ->
   : well_formed_frame chi r None
 with
 well_formed_frame_if_returned (chi : heap) (r : regPart chi) : option frameAddr -> Syntax.ponyType -> Prop :=
-  | wf_frame_ir (iota : frameAddr) (gamma : Typing.context) (L : varMap value) (E : Syntax.expressionSeq) (v_super : frameAddr?)
+  | wf_frame_ir (iota : frameAddr) (gamma : Typing.context) (L : localVars) (E : Syntax.expressionSeq) (v_super : frameAddr?)
       (t : Syntax.ponyType)
   : HeapMapsTo frame (someFrameAddr iota) (frameAlloc L E None v_super) chi
     -> False (* TODO: check local variables are well-typed w.r.t. something *)
