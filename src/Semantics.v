@@ -38,13 +38,13 @@ Inductive evaluatesTo { P : WFExpr.Program.program } : forall (X : Type), heap -
     -> HeapFieldLookup u f v' chi''
     -> HeapFieldAdd u f v chi'' chi'''
     -> evaluatesTo Syntax.rhs chi L (Syntax.fieldAssign (p, f) ap) chi''' L'' v'
-  | eval_becall (chi chi' chi'' : heap) (L L' L'' : localVars) (rcvr : @Syntax.aliased Syntax.path) (args : list (@Syntax.aliased Syntax.path))
+  | eval_becall (chi chi' chi'' chi''' : heap) (L L' L'' : localVars) (rcvr : @Syntax.aliased Syntax.path) (args : list (@Syntax.aliased Syntax.path))
     (b : Syntax.behaviourId) (rcvrVal : value) (argVals : list value)
   : evaluatesTo_list Syntax.aliased chi L args chi' L' argVals
     -> evaluatesTo Syntax.aliased chi' L' rcvr chi'' L'' rcvrVal
-    -> False (*TODO: receiver is actor in the heap *)
-    -> False (*TODO: append message to queue *)
-    -> evaluatesTo Syntax.rhs chi L (Syntax.behaviourCall rcvr b args) chi'' L'' rcvrVal
+    -> False (*TODO: receiver is actor in the heap - is this necessary? *)
+    -> HeapMessageAppend rcvrVal b argVals chi'' chi'''
+    -> evaluatesTo Syntax.rhs chi L (Syntax.behaviourCall rcvr b args) chi''' L'' rcvrVal
 with
 evaluatesTo_list { P : WFExpr.Program.program } : forall (X : Type), heap -> localVars -> list X -> heap -> localVars -> list value -> Prop :=
   | evaluatesTo_list_nil (X : Type) (chi : heap) (L : localVars)
