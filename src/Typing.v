@@ -262,6 +262,18 @@ typing_list { P : Program.program } : forall (X : Type), context -> list X -> li
     -> typing_list X gamma' lx lt gamma''
     -> typing_list X gamma (x :: lx) (t :: lt) gamma''.
 
+Lemma typing_func_on_type_and_outcome :
+  forall P : Program.program,
+  forall X : Type,
+  forall gamma gamma' gamma'' : context,
+  forall x : X,
+  forall T T' : ponyType,
+  @typing P X gamma x T gamma'
+  -> @typing P X gamma x T' gamma''
+  -> T = T' /\ gamma' = gamma''.
+Proof.
+  Admitted. (* TODO: prove this helper lemma (v. obvious) *)
+
 End Typing.
 
 Require Import Coq.MSets.MSetInterface.

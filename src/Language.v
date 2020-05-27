@@ -146,6 +146,27 @@ Inductive expressionSeq : Type :=
   | final : path -> expressionSeq
   | seq : expression -> expressionSeq -> expressionSeq.
 
+(* At several points, our proofs rely on the fact that the syntax types are distinct
+ * (because I abuse polymorphism) - but in Coq, type inequalites are not provable
+ * (in general) so we have to axiomatize the type inequalities we rely on *)
+
+(* The antivalence axiom is not complete, but should eventually generate these *)
+Axiom fieldOfPath_ne_path : fieldOfPath <> path.
+Axiom aliased_ne_path : forall X : Type, @aliased X <> path.
+Axiom expr_ne_path : expression <> path. 
+Axiom rhs_ne_path : rhs <> path. 
+Axiom expr_ne_fieldOfPath : expression <> fieldOfPath.
+Axiom expr_ne_aliased : forall X : Type, @aliased X <> expression.
+Axiom expr_ne_rhs : expression <> rhs.
+
+Hint Resolve fieldOfPath_ne_path : core.
+Hint Resolve aliased_ne_path : core.
+Hint Resolve expr_ne_path : core.
+Hint Resolve rhs_ne_path : core.
+Hint Resolve expr_ne_fieldOfPath : core.
+Hint Resolve expr_ne_aliased : core.
+Hint Resolve expr_ne_rhs : core.
+
 End Syntax.
 
 Require Import Coq.Structures.Equalities.

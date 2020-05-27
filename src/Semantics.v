@@ -57,22 +57,13 @@ evaluatesTo_list { P : WFExpr.Program.program } : forall (X : Type), heap -> loc
     -> evaluatesTo_list X chi' L' lx chi'' L'' lv
     -> evaluatesTo_list X chi L (x :: lx) chi'' L'' (v :: lv).
 
-(* TODO: get axioms for these inequalities *)
-(* The antivalence axiom is not complete, but should eventually generate these *)
-Axiom fieldOfPath_ne_path : Syntax.fieldOfPath <> Syntax.path.
-Axiom aliased_ne_path : forall X : Type, @Syntax.aliased X <> Syntax.path.
-Axiom expr_ne_path : Syntax.expression <> Syntax.path. 
-Axiom rhs_ne_path : Syntax.rhs <> Syntax.path. 
-
 Lemma paths_dont_change_heap { P : WFExpr.Program.program } : forall chi chi' L L' p v, @evaluatesTo P Syntax.path chi L p chi' L' v -> chi = chi'.
 Proof.
   intros.
+  (* Either the result is trivial *)
   inversion H; try reflexivity.
-  contradict H0; apply fieldOfPath_ne_path.
-  contradict H0; apply aliased_ne_path.
-  contradict H0; apply expr_ne_path.
-  contradict H0; apply rhs_ne_path.
-  contradict H0; apply rhs_ne_path.
+  (* Or there is a contradictory type equality in the hypotheses *)
+  all: try contradict H0; auto.
   Qed.
 
 End Semantics.
