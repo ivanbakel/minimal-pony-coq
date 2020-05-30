@@ -4,7 +4,7 @@ Require Import Coq.FSets.FMapInterface.
 Require Import Coq.MSets.MSetInterface.
 Require Import Coq.Structures.Equalities.
 
-Module Result1 (Map : WSfun) (SetM : WSetsOn).
+Module Soundness (Map : WSfun) (SetM : WSetsOn).
 
 Module Sem := Semantics Map SetM.
     
@@ -121,4 +121,104 @@ Proof.
   }
   Admitted.
 
-End Result1.
+Theorem result2 :
+  forall P : Sem.WFExpr.Program.program,
+  forall gamma gamma' : Sem.WFExpr.context,
+  forall p : Syntax.path,
+  forall S : Syntax.typeId,
+  forall k : Syntax.capability,
+  forall L L' : Sem.localVars,
+  forall chi chi' : Sem.heap,
+  forall v : Sem.value,
+    @Sem.WFExpr.well_formed_expr P gamma (Syntax.final p) (Syntax.type S k)
+    -> wellTypedLocals gamma L chi
+    -> @Sem.evaluatesTo P Syntax.path chi L p chi' L' v
+    -> Sem.heapTyping v S chi'.
+Proof.
+  intros P gamma gamma' p S k L L' chi chi' v.
+
+  intros path_well_formed locals_well_typed p_evaluates_to_v.
+  
+  assert (chi = chi') as heaps_equal.
+  { apply (@Sem.paths_dont_change_heap P) with (L:=L) (L':=L') (p:=p) (v:=v); assumption. 
+  } 
+  rewrite <- heaps_equal. 
+  
+  destruct locals_well_typed as [ vars_well_typed temps_well_typed ].
+
+  inversion path_well_formed.
+  inversion H1.
+  { destruct aT as [ S' b ].
+
+    assert (Sem.WFExpr.VarMapsTo x (Syntax.aType S b) gamma) as x_typed_b.
+    enough (S = S') as types_same.
+    rewrite types_same.
+    rewrite H8.
+    assumption.
+    (* Prove S = S' *)
+    simpl in H4.
+    inversion H4. 
+    reflexivity.
+
+    apply vars_well_typed with (x:=x) (b:=b).
+    assumption.
+
+    inversion p_evaluates_to_v.
+    
+    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H3; try apply Axioms.type_decidability.
+    
+    assert (x = x0) as vars_same.
+    { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H7.
+      rewrite <- H3 in H7.
+      inversion H7.
+      reflexivity.
+      apply Axioms.type_decidability.
+    }
+
+    rewrite vars_same.
+    assumption.
+
+    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H3; try apply Axioms.type_decidability.
+    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H7; try apply Axioms.type_decidability.
+    rewrite <- H3 in H7.
+    contradict H7.
+    discriminate.
+
+    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H3; try apply Axioms.type_decidability.
+    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H7; try apply Axioms.type_decidability.
+    rewrite <- H3 in H7.
+    contradict H7.
+    discriminate.
+
+    contradict H9; auto.
+    contradict H9; auto.
+    contradict H9; auto.
+    contradict H9; auto.
+    contradict H9; auto.
+    contradict H9; auto.
+  }
+  {
+    { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H6.
+      contradict H6.
+      discriminate.
+      apply Axioms.type_decidability.
+    }
+    { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H6.
+      contradict H6.
+      discriminate.
+      apply Axioms.type_decidability.
+    }
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+    contradict H3; auto. 
+  }
+  Admitted.
+
+End Soundness.
