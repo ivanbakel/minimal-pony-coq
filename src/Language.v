@@ -96,6 +96,19 @@ Definition hat (aT : aliasedType) : ponyType :=
     | aType s b   => type s (base b)
   end.
 
+Lemma hat_preserves_type_id :
+  forall S S' : typeId,
+  forall b : baseCapability,
+  forall k : capability,
+  hat (aType S b) = type S' k
+    -> S = S'.
+Proof.
+  intros S S' b k.
+  (* Case analysis of b, compute the value of hat, introduce the hat equality,
+  * argue by constructors that the type IDs are equal *)
+  destruct b; compute; intro H; inversion H; reflexivity.
+  Qed.
+
 Inductive var : Type :=
   | variable : string -> var.
 
@@ -146,26 +159,15 @@ Inductive expressionSeq : Type :=
   | final : path -> expressionSeq
   | seq : expression -> expressionSeq -> expressionSeq.
 
-(* At several points, our proofs rely on the fact that the syntax types are distinct
- * (because I abuse polymorphism) - but in Coq, type inequalites are not provable
- * (in general) so we have to axiomatize the type inequalities we rely on *)
+(* Closed-world encoding used for polymorphic judgements *)
+Inductive cw_encoding : Type :=
+  | ePath : path -> cw_encoding
+  | eFieldOfPath : fieldOfPath -> cw_encoding
+  | eAlias : cw_encoding -> cw_encoding
+  | eExpr : expression -> cw_encoding
+  | eRhs : rhs -> cw_encoding.
 
-(* The antivalence axiom is not complete, but should eventually generate these *)
-Axiom fieldOfPath_ne_path : fieldOfPath <> path.
-Axiom aliased_ne_path : forall X : Type, @aliased X <> path.
-Axiom expr_ne_path : expression <> path. 
-Axiom rhs_ne_path : rhs <> path. 
-Axiom expr_ne_fieldOfPath : expression <> fieldOfPath.
-Axiom expr_ne_aliased : forall X : Type, @aliased X <> expression.
-Axiom expr_ne_rhs : expression <> rhs.
-
-Hint Resolve fieldOfPath_ne_path : core.
-Hint Resolve aliased_ne_path : core.
-Hint Resolve expr_ne_path : core.
-Hint Resolve rhs_ne_path : core.
-Hint Resolve expr_ne_fieldOfPath : core.
-Hint Resolve expr_ne_aliased : core.
-Hint Resolve expr_ne_rhs : core.
+Definition eAPaths (aPaths : list (@aliased path)) : list cw_encoding := map (fun ap => match ap with | aliasOf p =>  eAlias (ePath p) end) aPaths.
 
 End Syntax.
 

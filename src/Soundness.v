@@ -37,10 +37,10 @@ Theorem result1 :
   forall L L' : Sem.localVars,
   forall chi chi' : Sem.heap,
   forall v : Sem.value,
-    @Sem.WFExpr.typing P Syntax.expression gamma e (Syntax.type S k) gamma'
+    @Sem.WFExpr.typing P gamma (Syntax.eExpr e) (Syntax.type S k) gamma'
     -> @Sem.WFExpr.well_formed_expr P gamma (Syntax.seq e E) T
     -> wellTypedLocals gamma L chi
-    -> @Sem.evaluatesTo P Syntax.expression chi L e chi' L' v
+    -> @Sem.evaluatesTo P chi L (Syntax.eExpr e) chi' L' v
     -> Sem.heapTyping v S chi'
         /\ @Sem.WFExpr.well_formed_expr P gamma' E T.
 Proof.
@@ -56,19 +56,7 @@ Proof.
   { destruct e as [ newVar | var arhs | temp pf ].
     { assert (v = None) as v_is_none.
       { inversion e_evaluates_v.
-        contradict H; auto.
-        contradict H; auto.
-        contradict H; auto.
-        contradict H; auto.
-        contradict H; auto.
         reflexivity.
-        { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H4.
-          contradict H4.
-          discriminate.
-          apply Axioms.type_decidability.
-        }
-        contradict H; auto.
-        contradict H; auto. 
       }
       rewrite -> v_is_none.
       apply Sem.heaptyp_null.
@@ -87,7 +75,7 @@ Proof.
   *)
   { inversion e_seq_E_wf.
     { assert (Syntax.type S k = t' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (X:=Syntax.expression) (gamma:=gamma) (x:=Sem.WFExpr.varDecl x).
+      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (Sem.WFExpr.varDecl x)).
         rewrite -> H.
         assumption.
         assumption.
@@ -95,7 +83,7 @@ Proof.
       rewrite -> gamma_eq; assumption.
     }
     { assert (Syntax.type S k = t' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (X:=Syntax.expression) (gamma:=gamma) (x:=Sem.WFExpr.assign x arhs).
+      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (Sem.WFExpr.assign x arhs)).
         rewrite -> H.
         assumption.
         assumption.
@@ -103,7 +91,7 @@ Proof.
       rewrite -> gamma_eq; assumption.
     }
     { assert (Syntax.type S k = T' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (X:=Syntax.expression) (gamma:=gamma) (x:=Sem.WFExpr.tempAssign t pf).
+      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (Sem.WFExpr.tempAssign t pf)).
         rewrite -> H.
         assumption.
         assumption.
@@ -111,7 +99,7 @@ Proof.
       rewrite -> gamma_eq; assumption.
     }
     { assert (Syntax.type S k = T' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (X:=Syntax.expression) (gamma:=gamma) (x:=e).
+      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr e).
         assumption.
         rewrite <- H.
         assumption.
@@ -123,7 +111,7 @@ Proof.
 
 Theorem result2 :
   forall P : Sem.WFExpr.Program.program,
-  forall gamma gamma' : Sem.WFExpr.context,
+  forall gamma : Sem.WFExpr.context,
   forall p : Syntax.path,
   forall S : Syntax.typeId,
   forall k : Syntax.capability,
@@ -132,10 +120,10 @@ Theorem result2 :
   forall v : Sem.value,
     @Sem.WFExpr.well_formed_expr P gamma (Syntax.final p) (Syntax.type S k)
     -> wellTypedLocals gamma L chi
-    -> @Sem.evaluatesTo P Syntax.path chi L p chi' L' v
+    -> @Sem.evaluatesTo P chi L (Syntax.ePath p) chi' L' v
     -> Sem.heapTyping v S chi'.
 Proof.
-  intros P gamma gamma' p S k L L' chi chi' v.
+  intros P gamma p S k L L' chi chi' v.
 
   intros path_well_formed locals_well_typed p_evaluates_to_v.
   
@@ -145,80 +133,70 @@ Proof.
   rewrite <- heaps_equal. 
   
   destruct locals_well_typed as [ vars_well_typed temps_well_typed ].
+ 
+  inversion path_well_formed as
+    [ _gamma0 gamma' p0 T p_typed_s_k
+    | | | |
+    ].
 
-  inversion path_well_formed.
-  inversion H1.
-  { destruct aT as [ S' b ].
+  destruct p as [ x | x | t ] eqn:e.
+  { inversion p_typed_s_k as
+      [ _gamma1 _x0 [S' b] x_mapsto_Sb
+      | | | | | | | | | | | |
+      ].
 
-    assert (Sem.WFExpr.VarMapsTo x (Syntax.aType S b) gamma) as x_typed_b.
-    enough (S = S') as types_same.
-    rewrite types_same.
-    rewrite H8.
-    assumption.
-    (* Prove S = S' *)
-    simpl in H4.
-    inversion H4. 
-    reflexivity.
+    assert (gamma = gamma') as ctxt_same by assumption.
 
     apply vars_well_typed with (x:=x) (b:=b).
+    rewrite ctxt_same.
     assumption.
 
-    inversion p_evaluates_to_v.
-    
-    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H3; try apply Axioms.type_decidability.
-    
-    assert (x = x0) as vars_same.
-    { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H7.
-      rewrite <- H3 in H7.
-      inversion H7.
-      reflexivity.
-      apply Axioms.type_decidability.
+    inversion p_evaluates_to_v as
+      [ _chi0 _L0 _x1 _v0 x_mapsto_v
+      | | | | | | | |
+      ].
+    assumption.
+  }
+  { inversion p_typed_s_k as 
+      [ |
+      | _gamma1 _x0 [S' b] x_mapsto_unhat_Sk
+      | | | | | | | | | | ].
+
+    assert (S' = S) as typeids_same.
+    { apply Syntax.hat_preserves_type_id with (b:=b) (k:=k).
+      unfold Syntax.hat.
+      assumption.
     }
 
-    rewrite vars_same.
+    apply vars_well_typed with (x:=x) (b:=b).
+    rewrite <- typeids_same.
     assumption.
 
-    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H3; try apply Axioms.type_decidability.
-    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H7; try apply Axioms.type_decidability.
-    rewrite <- H3 in H7.
-    contradict H7.
-    discriminate.
-
-    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H3; try apply Axioms.type_decidability.
-    apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H7; try apply Axioms.type_decidability.
-    rewrite <- H3 in H7.
-    contradict H7.
-    discriminate.
-
-    contradict H9; auto.
-    contradict H9; auto.
-    contradict H9; auto.
-    contradict H9; auto.
-    contradict H9; auto.
-    contradict H9; auto.
+    inversion p_evaluates_to_v as
+      [ |
+      | _chi0 _L0 _x1 _v0 x_mapsto_v
+      | | | | | |
+      ].
+    assumption.
   }
-  {
-    { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H6.
-      contradict H6.
-      discriminate.
-      apply Axioms.type_decidability.
-    }
-    { apply Coq.Logic.Eqdep_dec.inj_pair2_eq_dec in H6.
-      contradict H6.
-      discriminate.
-      apply Axioms.type_decidability.
-    }
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
-    contradict H3; auto. 
+  { inversion p_typed_s_k as
+      [ 
+      | _gamma1 _t0 [ S' k' ] t_mapsto_Sk
+      | | | | | | | | | | |
+      ].
+
+    assert (gamma = gamma') as ctxt_same by assumption.
+
+    apply temps_well_typed with (t:=t) (k:=k).
+    rewrite ctxt_same.
+    assumption.
+
+    inversion p_evaluates_to_v as
+      [
+      | _chi0 _L0 _t1 _v0 t_mapsto_v
+      | | | | | | | ].
+    assumption.
   }
-  Admitted.
+  Qed.
 
 End Soundness.

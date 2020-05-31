@@ -189,87 +189,86 @@ Proof.
   induction b; try (compute; eauto).
   Qed.
  
-Reserved Notation "g |-{ X } x : T ==> g'" (at level 9, x at level 50, T at level 50).
+Reserved Notation "g |- x : T ==> g'" (at level 9, x at level 50, T at level 50).
 
-Inductive typing { P : Program.program } : forall ( X : Type), context -> X -> ponyType -> context -> Prop :=
+Inductive typing { P : Program.program } : context -> cw_encoding -> ponyType -> context -> Prop :=
   (* Path rules *)
   | path_var (gamma : context) (x : var) (aT : aliasedType) 
   : VarMapsTo x aT gamma 
-      -> gamma |-{ path } (use x) : asPonyType aT ==> gamma
+      -> gamma |- (ePath (use x)) : asPonyType aT ==> gamma
   | path_temp (gamma : context) (t : temp) (T : ponyType)
   : TempMapsTo t T gamma
-      -> gamma |-{ path } (useTemp t) : T ==> gamma
+      -> gamma |- (ePath (useTemp t)) : T ==> gamma
   | path_consume (gamma : context) (x : var) (aT : aliasedType)
   : VarMapsTo x aT gamma
-      -> gamma |-{ path } (consume x) : asPonyType aT ==> (removeVar x gamma)
+      -> gamma |- (ePath (consume x)) : hat aT ==> (removeVar x gamma)
   | path_field (gamma gamma' : context) (p : path) (s s' : typeId) (k k'' : capability) (k' : baseCapability) (f : fieldId)
-  : gamma |-{ path } p : (type s k) ==> gamma'
+  : gamma |- (ePath p) : (type s k) ==> gamma'
       -> @Program.fieldLookup P s f (aType s' k')
       -> viewAdapt k k' = Some k''
-      -> gamma |-{ fieldOfPath } (p, f) : (type s' k'') ==> gamma'
+      -> gamma |- (eFieldOfPath (p, f)) : (type s' k'') ==> gamma'
   (* The alias rule *)
-  | expr_alias { X : Type } (gamma gamma': context) (x : X) (s : typeId) (k : capability) (b : baseCapability)
-  : gamma |-{ X } x : (type s k) ==> gamma'
+  | expr_alias (gamma gamma': context) (x : cw_encoding) (s : typeId) (k : capability) (b : baseCapability)
+  : gamma |- x : (type s k) ==> gamma'
     -> (alias k <; base b)
-    -> gamma |-{ aliased } (aliasOf x) : (type s (base b)) ==> gamma'
+    -> gamma |- (eAlias x) : (type s (base b)) ==> gamma'
   | expr_vardecl (gamma : context) (x : var) (aT : aliasedType)
   : ~ VarIn x gamma
-      -> gamma |-{ expression } varDecl x : asPonyType aT ==> (addVar x aT gamma)
-  | expr_localassign (gamma gamma' : context) (x : var) (arhs : @aliased rhs) (aT : aliasedType)
-  : gamma |-{ @aliased rhs } arhs : asPonyType aT ==> gamma
+      -> gamma |- (eExpr (varDecl x)) : asPonyType aT ==> (addVar x aT gamma)
+  | expr_localassign (gamma gamma' : context) (x : var) (r : rhs) (aT : aliasedType)
+  : gamma |- (eAlias (eRhs r)) : asPonyType aT ==> gamma
     -> VarMapsTo x aT gamma'
-    -> gamma |-{ expression } assign x arhs : hat aT ==> gamma'
+    -> gamma |- (eExpr (assign x (aliasOf r))) : hat aT ==> gamma'
   | expr_tempassign (gamma gamma' : context) (t : temp) (pf : fieldOfPath) (T : ponyType)
-  : gamma |-{ fieldOfPath } pf : T ==> gamma'
-    -> gamma |-{ expression} tempAssign t pf : T ==> (LocalMap.addTemp t T gamma')
+  : gamma |- (eFieldOfPath pf) : T ==> gamma'
+    -> gamma |- (eExpr (tempAssign t pf)) : T ==> (LocalMap.addTemp t T gamma')
   | expr_fieldassign (gamma gamma' gamma'' : context) (p p' : path) (f : fieldId) (s s' : typeId) (k k' : capability) (b b' : baseCapability)
-  : gamma |-{ aliased } (aliasOf p') : (type s' (base b)) ==> gamma'
-      -> gamma' |-{ path } p : (type s k) ==> gamma''
+  : gamma |- (eAlias (ePath p')) : (type s' (base b)) ==> gamma'
+      -> gamma' |- (ePath p) : (type s k) ==> gamma''
       -> @Program.fieldLookup P s f (aType s' b')
       -> safeToWrite k b
       -> (base b) <; (base b')
       -> writeAdapt k b' = Some k'
-      -> gamma |-{ rhs } fieldAssign (p, f) (aliasOf p') : type s' k' ==> gamma''
-  | expr_funcall (gamma gamma' gamma'' : context) (ap : @aliased path) (args : list (@aliased path)) (s : typeId) (b : baseCapability)
+      -> gamma |- (eRhs (fieldAssign (p, f) (aliasOf p'))) : type s' k' ==> gamma''
+  | expr_funcall (gamma gamma' gamma'' : context) (p : path) (args : list (@aliased path)) (s : typeId) (b : baseCapability)
       (mId : methodId) (mArgs : Program.arrayVarMap aliasedType) (returnType : ponyType) (body : expressionSeq)
   : @Program.methodLookup P s mId (Program.mDef b mArgs returnType body)
-    -> typing_list (@aliased path) gamma args (Program.argValues mArgs) gamma'
-    -> gamma' |-{ @aliased path } ap : (type s (base b)) ==> gamma''
-    -> gamma |-{ rhs } methodCall ap mId args : returnType ==> gamma''
-  | expr_becall (gamma gamma' gamma'' : context) (ap : @aliased path) (args : list (@aliased path)) (s : typeId)
+    -> typing_list gamma (eAPaths args) (Program.argValues mArgs) gamma'
+    -> gamma' |- (eAlias (ePath p)) : (type s (base b)) ==> gamma''
+    -> gamma |- (eRhs (methodCall (aliasOf p) mId args)) : returnType ==> gamma''
+  | expr_becall (gamma gamma' gamma'' : context) (p : path) (args : list (@aliased path)) (s : typeId)
       (bId : behaviourId) (bArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
   : @Program.behaviourLookup P s bId (Program.bDef bArgs body)
-    -> typing_list (@aliased path) gamma args (Program.argValues bArgs) gamma'
-    -> gamma' |-{ @aliased path } ap : (type s (base tag)) ==> gamma''
-    -> gamma |-{ rhs } behaviourCall ap bId args : (type s (base tag)) ==> gamma''
+    -> typing_list gamma (eAPaths args) (Program.argValues bArgs) gamma'
+    -> gamma' |- (eAlias (ePath p)) : (type s (base tag)) ==> gamma''
+    -> gamma |- (eRhs (behaviourCall (aliasOf p) bId args)) : (type s (base tag)) ==> gamma''
   | expr_classcon (gamma gamma' : context) (args : list (@aliased path)) (c : classId)
       (kId : constructorId) (cnArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
   : @Program.constructorLookup P (inl c) kId (Program.cnDef cnArgs body)
-    -> typing_list (@aliased path) gamma args (Program.argValues cnArgs) gamma'
-    -> gamma |-{ rhs } constructorCall (inl c) kId args : (type (inl c) (base ref)) ==> gamma'
+    -> typing_list gamma (eAPaths args) (Program.argValues cnArgs) gamma'
+    -> gamma |- (eRhs (constructorCall (inl c) kId args)) : (type (inl c) (base ref)) ==> gamma'
   | expr_actorcon (gamma gamma' : context) (args : list (@aliased path)) (a : actorId)
       (kId : constructorId) (cnArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
   : @Program.constructorLookup P (inr a) kId (Program.cnDef cnArgs body)
-    -> typing_list (@aliased path) gamma args (Program.argValues cnArgs) gamma'
-    -> gamma |-{ rhs } constructorCall (inr a) kId args : (type (inr a) (base tag)) ==> gamma'
-where "G |-{ X } x : T ==> G'" := (typing X G x T G')
+    -> typing_list gamma (eAPaths args) (Program.argValues cnArgs) gamma'
+    -> gamma |- (eRhs (constructorCall (inr a) kId args)) : (type (inr a) (base tag)) ==> gamma'
+where "G |- x : T ==> G'" := (typing G x T G')
 with
-typing_list { P : Program.program } : forall (X : Type), context -> list X -> list ponyType -> context -> Prop :=
-  | typing_list_nil (X : Type) (gamma : context)
-  : typing_list X gamma nil nil gamma
-  | typing_list_cons (X : Type) (gamma gamma' gamma'' : context) (x : X) (t : ponyType) (lx : list X) (lt : list ponyType)
-  : gamma |-{ X } x : t ==> gamma'
-    -> typing_list X gamma' lx lt gamma''
-    -> typing_list X gamma (x :: lx) (t :: lt) gamma''.
+typing_list { P : Program.program } : context -> list cw_encoding -> list ponyType -> context -> Prop :=
+  | typing_list_nil (gamma : context)
+  : typing_list gamma nil nil gamma
+  | typing_list_cons (gamma gamma' gamma'' : context) (x : cw_encoding) (t : ponyType) (lx : list cw_encoding) (lt : list ponyType)
+  : gamma |- x : t ==> gamma'
+    -> typing_list gamma' lx lt gamma''
+    -> typing_list gamma (x :: lx) (t :: lt) gamma''.
 
 Lemma typing_func_on_type_and_outcome :
   forall P : Program.program,
-  forall X : Type,
   forall gamma gamma' gamma'' : context,
-  forall x : X,
+  forall x : cw_encoding,
   forall T T' : ponyType,
-  @typing P X gamma x T gamma'
-  -> @typing P X gamma x T' gamma''
+  @typing P gamma x T gamma'
+  -> @typing P gamma x T' gamma''
   -> T = T' /\ gamma' = gamma''.
 Proof.
   Admitted. (* TODO: prove this helper lemma (v. obvious) *)
@@ -335,22 +334,22 @@ Definition consumeExpr (e : expression) : tempSet :=
 
 Inductive well_formed_expr { P : Program.program } : context -> expressionSeq -> ponyType -> Prop :=
   | wf_return (gamma gamma' : context) (p : path) (t : ponyType)
-  : @typing P path gamma p t gamma'
+  : @typing P gamma (ePath p) t gamma'
     -> well_formed_expr gamma (final p) t
   | wf_vardecl (gamma gamma' : context) (x : var) (E : expressionSeq) (t t' : ponyType)
-  : @typing P expression gamma (varDecl x) t' gamma'
+  : @typing P gamma (eExpr (varDecl x)) t' gamma'
     -> well_formed_expr gamma' E t
     -> well_formed_expr gamma (seq (varDecl x) E) t
   | wf_localassign (gamma gamma' : context) (x : var) (arhs : @aliased rhs) (E : expressionSeq) (t t' : ponyType)
-  : @typing P expression gamma (assign x arhs) t' gamma'
+  : @typing P gamma (eExpr (assign x arhs)) t' gamma'
     -> well_formed_expr gamma' E t
     -> well_formed_expr gamma (seq (assign x arhs) E) t
   | wf_tempassign_final (gamma gamma' : context) (t : temp) (pf : fieldOfPath) (p : path) (T T' : ponyType)
-  : @typing P expression gamma (tempAssign t pf) T' gamma'
+  : @typing P gamma (eExpr (tempAssign t pf)) T' gamma'
     -> well_formed_expr gamma' (final p) T
     -> well_formed_expr gamma (seq (tempAssign t pf) (final p)) T
   | wf_tempassign (gamma gamma' : context) (t : temp) (pf : fieldOfPath) (e : expression) (E : expressionSeq) (T T' : ponyType)
-  : @typing P expression gamma (tempAssign t pf) T' gamma'
+  : @typing P gamma (eExpr (tempAssign t pf)) T' gamma'
     -> TempSet.In t (consumeExpr e)
     -> well_formed_expr gamma' (seq e E) T
     -> well_formed_expr gamma (seq (tempAssign t pf) (seq e E)) T.
