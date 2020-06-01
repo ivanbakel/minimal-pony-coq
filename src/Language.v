@@ -218,6 +218,7 @@ Scheme Equality for Syntax.actorId.
 End DecidableActor.
 
 Require Import Coq.FSets.FMapInterface.
+Require Import Coq.FSets.FMapFacts.
 
 From Pony Require Import ArrayMap.
 
@@ -231,6 +232,7 @@ Definition argValues (avMap : arrayVarMap Syntax.aliasedType) : list Syntax.pony
 
 Module FieldMap := Map DecidableField.
 Definition fieldMap := FieldMap.t.
+Module FieldMapFacts := WFacts_fun DecidableField FieldMap.
 
 Module ConstructorMap := Map DecidableConstructor.
 Definition constructorMap := ConstructorMap.t.
@@ -243,9 +245,11 @@ Definition behaviourMap := BehaviourMap.t.
 
 Module ClassMap := Map DecidableClass.
 Definition classMap := ClassMap.t.
+Module ClassMapFacts := WFacts_fun DecidableClass ClassMap.
 
 Module ActorMap := Map DecidableActor.
 Definition actorMap := ActorMap.t.
+Module ActorMapFacts := WFacts_fun DecidableActor ActorMap.
 
 Inductive constructorDef : Type :=
   | cnDef (args : arrayVarMap Syntax.aliasedType) (body : Syntax.expressionSeq).
@@ -282,8 +286,74 @@ Record program : Type :=
   }.
 
 Definition fieldLookup { P : program } (s : Syntax.typeId) (f : Syntax.fieldId) (t : Syntax.aliasedType) : Prop
-  := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes P) /\ FieldMap.MapsTo f t (classFields cd)
-      \/ exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors P) /\ FieldMap.MapsTo f t (actorFields ad).
+  := (exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes P) /\ FieldMap.MapsTo f t (classFields cd))
+      \/ (exists (a : Syntax.actorId) (ad : actorDef), s = inr a /\ ActorMap.MapsTo a ad (actors P) /\ FieldMap.MapsTo f t (actorFields ad)).
+
+Lemma fieldLookup_func :
+  forall P : program,
+  forall s : Syntax.typeId,
+  forall f : Syntax.fieldId,
+  forall t1 t2 : Syntax.aliasedType,
+  @fieldLookup P s f t1
+    -> @fieldLookup P s f t2
+    -> t1 = t2.
+Proof.
+  intros P s f t1 t2.
+  unfold fieldLookup.
+  intros lookup_s_f_t1 lookup_s_f_t2.
+
+  destruct (lookup_s_f_t1, lookup_s_f_t2) as [ [ t1_c | t1_a ] [ t2_c | t2_a ] ].
+  { destruct (t1_c, t2_c) as [ [ c1 [ cd1 [ c_eq_c1 [ c1_MapsTo_cd1 f_MapsTo_t1 ] ] ] ] [ c2 [ cd2 [ c_eq_c2 [ c2_MapsTo_cd2 f_MapsTo_t2 ] ] ] ] ].
+    
+    assert (c1 = c2) as c1_eq_c2.
+    { assert (inl c1 = inl c2) as H by (transitivity s; auto).
+      now inversion H.
+    } 
+
+    assert (cd1 = cd2) as cd1_eq_cd2.
+    { apply ClassMapFacts.MapsTo_fun with (m:=classes P) (x:=c1).
+      assumption.
+      rewrite c1_eq_c2.
+      assumption.
+    }
+
+    apply FieldMapFacts.MapsTo_fun with (m:=classFields cd1) (x:=f).
+    assumption.
+    rewrite cd1_eq_cd2.
+    assumption.
+  }
+  { destruct t1_c as [ c [ _ [ bad1 _ ] ] ].
+    destruct t2_a as [ a [ _ [ bad2 _ ] ] ].
+    assert (inl c = inr a) as bad by (transitivity s; auto).
+    contradict bad.
+    discriminate.
+  }
+  { destruct t1_a as [ a [ _ [ bad1 _ ] ] ].
+    destruct t2_c as [ c [ _ [ bad2 _ ] ] ].
+    assert (inl c = inr a) as bad by (transitivity s; auto).
+    contradict bad.
+    discriminate.
+  }
+  { destruct (t1_a, t2_a) as [ [ a1 [ ad1 [ a_eq_a1 [ a1_MapsTo_ad1 f_MapsTo_t1 ] ] ] ] [ a2 [ ad2 [ a_eq_a2 [ a2_MapsTo_ad2 f_MapsTo_t2 ] ] ] ] ].
+    
+    assert (a1 = a2) as a1_eq_a2.
+    { assert (inr a1 = inr a2) as H by (transitivity s; auto).
+      now inversion H.
+    } 
+
+    assert (ad1 = ad2) as ad1_eq_ad2.
+    { apply ActorMapFacts.MapsTo_fun with (m:=actors P) (x:=a1).
+      assumption.
+      rewrite a1_eq_a2.
+      assumption.
+    }
+
+    apply FieldMapFacts.MapsTo_fun with (m:=actorFields ad1) (x:=f).
+    assumption.
+    rewrite ad1_eq_ad2.
+    assumption.
+  }
+Qed.
 
 Definition methodLookup { P : program } (s : Syntax.typeId) (mId : Syntax.methodId) (mDef : methodDef) : Prop
   := exists (c : Syntax.classId) (cd : classDef), s = inl c /\ ClassMap.MapsTo c cd (classes P) /\ MethodMap.MapsTo mId mDef (classMethods cd)

@@ -35,4 +35,24 @@ Definition empty (E F : Type) : t E F := (VarMap.empty E, TempMap.empty F).
 Definition fold_var { E F B : Type } (f : Syntax.var -> E -> B -> B) (m : t E F) (init : B) : B
   := VarMap.fold f (fst m) init.
 
+Lemma VarMapsTo_func { E F : Type } :
+  forall m : t E F,
+  forall var : Syntax.var,
+  forall e1 e2 : E,
+  VarMapsTo var e1 m
+    -> VarMapsTo var e2 m
+    -> e1 = e2.
+Proof.
+  Admitted. (* TODO: Prove this lemma (v. obvious) *)
+
+Lemma TempMapsTo_func { E F : Type } :
+  forall m : t E F,
+  forall temp : Syntax.temp,
+  forall f1 f2 : F,
+  TempMapsTo temp f1 m
+    -> TempMapsTo temp f2 m
+    -> f1 = f2.
+Proof.
+  Admitted. (* TODO: Prove this lemma (v. obvious) *)
+
 End LocalMap.

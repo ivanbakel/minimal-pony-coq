@@ -198,7 +198,7 @@ Inductive typing { P : Program.program } : context -> cw_encoding -> ponyType ->
       -> gamma |- (ePath (use x)) : asPonyType aT ==> gamma
   | path_temp (gamma : context) (t : temp) (T : ponyType)
   : TempMapsTo t T gamma
-      -> gamma |- (ePath (useTemp t)) : T ==> gamma
+      -> gamma |- (ePath (useTemp t)) : T ==> (removeTemp t gamma)
   | path_consume (gamma : context) (x : var) (aT : aliasedType)
   : VarMapsTo x aT gamma
       -> gamma |- (ePath (consume x)) : hat aT ==> (removeVar x gamma)
@@ -262,6 +262,59 @@ typing_list { P : Program.program } : context -> list cw_encoding -> list ponyTy
     -> typing_list gamma' lx lt gamma''
     -> typing_list gamma (x :: lx) (t :: lt) gamma''.
 
+Lemma typing_paths_func_on_type_and_outcome :
+  forall P : Program.program,
+  forall gamma gamma' gamma'' : context,
+  forall p : path,
+  forall T T' : ponyType,
+  @typing P gamma (ePath p) T gamma'
+  -> @typing P gamma (ePath p) T' gamma''
+  -> T = T' /\ gamma' = gamma''.
+  intros P gamma gamma' gamma'' p T T' p_type_T_gamma' p_type_T'_gamma''.
+  
+  destruct p as [ x | x | t ].
+  { inversion p_type_T_gamma' as [ _gamma0 _x0 aT p_mapsto_aT | | | | | | | | | | | | ].
+    inversion p_type_T'_gamma'' as [ _gamma1 _x1 aT' p_mapsto_aT' | | | | | | | | | | | | ].
+    assert (gamma' = gamma'') as ctxts_same by (transitivity gamma; auto).
+
+    split.
+    { enough (aT = aT') as aTs_equal.
+      rewrite <- aTs_equal. 
+      reflexivity.
+
+      apply VarMapsTo_func with (m:=gamma') (var:=x).
+      assumption.
+      rewrite ctxts_same; assumption.
+    }
+    { assumption.
+    }
+  }
+  { inversion p_type_T_gamma' as [ | | _gamma0 _x0 aT p_mapsto_aT | | | | | | | | | | ].
+    inversion p_type_T'_gamma'' as [ | | _gamma1 _x1 aT' p_mapsto_aT' | | | | | | | | | | ].
+
+    assert (gamma' = gamma'') as ctxts_same by (transitivity (removeVar x gamma); auto).
+
+    split.
+    { enough (aT = aT') as aTs_equal.
+      rewrite <- aTs_equal.
+      reflexivity.
+
+      apply VarMapsTo_func with (m:=gamma) (var:=x); assumption.
+    }
+    { reflexivity.
+    }
+  }
+  { inversion p_type_T_gamma' as [ | _gamma0 _t0 _T0 t_mapsto_T | | | | | | | | | | | ].
+    inversion p_type_T'_gamma'' as [ | _gamma1 _t1 _T'0 t_mapsto_T' | | | | | | | | | | | ].
+    
+    split.
+    { apply TempMapsTo_func with (m:=gamma) (temp:=t); assumption.
+    }
+    { reflexivity.
+    }
+  }
+  Qed.
+
 Lemma typing_func_on_type_and_outcome :
   forall P : Program.program,
   forall gamma gamma' gamma'' : context,
@@ -271,6 +324,78 @@ Lemma typing_func_on_type_and_outcome :
   -> @typing P gamma x T' gamma''
   -> T = T' /\ gamma' = gamma''.
 Proof.
+  intros P gamma gamma' gamma'' x T T' x_type_T_gamma' x_type_T'_gamma''.
+  induction x as [ p | fp | x' IHx' | [] | [] ].
+  (* Case for paths is shown as a lemma *)
+  { apply typing_paths_func_on_type_and_outcome with (P:=P) (p:=p) (gamma:=gamma); assumption.
+  }
+  { inversion x_type_T_gamma' as [ | | | _gamma0 _gamma'0 p1 S1 S1' k1 k1' b1 f1 p1_typed_s1_k1 lookup_s1_f1_is_s1'_k1' viewadapt_k1_b1_k1' | | | | | | | | | ].
+    inversion x_type_T'_gamma'' as [ | | | _gamma1 _gamma'1 p2 S2 S2' k2 k2' b2 f2 p2_typed_s2_k2 lookup_s2_f2_is_s2'_k2' viewadapt_k2_b2_k2' | | | | | | | | | ].
+
+    assert (p1 = p2 /\ f1 = f2) as [ paths_same fields_same ].
+    { assert ((p1, f1) = (p2, f2)) as fps_same by (transitivity fp; auto).
+      now inversion fps_same.
+    }
+
+    assert (type S1 k1 = type S2 k2 /\ gamma' = gamma'') as [ paths_typed_same ctxts_same ].
+    { apply typing_paths_func_on_type_and_outcome with (P:=P) (p:=p1) (gamma:=gamma).
+      assumption.
+      rewrite paths_same.
+      assumption.
+    }
+
+    split.
+    { assert (S1' = S2' /\ b1 = b2) as [ f_type_ids_same bs_same ].
+      { assert (aType S1' b1 = aType S2' b2) as aTypes_same.
+        { apply Program.fieldLookup_func with (P:=P) (s:=S1) (f:=f1).
+          assumption.
+          rewrite fields_same.
+          assert (S1 = S2) as type_ids_same by (inversion paths_typed_same; auto).
+          rewrite type_ids_same.
+          assumption.
+        }
+        
+        now inversion aTypes_same.
+      }
+
+      enough (k1' = k2') as vAs_same.
+      rewrite f_type_ids_same.
+      rewrite vAs_same.
+      reflexivity.
+
+      assert (Some k1' = Some k2') as somes_eq.
+      { transitivity (viewAdapt k1 b1).
+        auto.
+        rewrite bs_same.
+        assert (k1 = k2) as ks_eq by (inversion paths_typed_same; auto).
+        rewrite ks_eq.
+        auto.
+      }
+
+      inversion somes_eq.
+      reflexivity.
+    }
+    { assumption.
+    }
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
+  { admit. (* TODO *)
+  }
   Admitted. (* TODO: prove this helper lemma (v. obvious) *)
 
 End Typing.
