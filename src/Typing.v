@@ -5,10 +5,10 @@ Require Import Coq.Structures.Equalities.
 
 Module Context (Map : WSfun).
 
-Include Syntax.
+Export Syntax.
 
 Module LocalMap := LocalMap Map.
-Include LocalMap.
+Export LocalMap.
 
 Definition context : Type := (LocalMap.t aliasedType ponyType).
 
@@ -29,10 +29,12 @@ End Context.
 Module Typing (Map : WSfun).
 
 Module Program := Program Map.
-Include Program.
+Export Program. 
 
 Module Context := Context Map.
-Include Context.
+Import Context.
+
+Import Context.LocalMap.
 
 (* Partial function - not defined for @tag@ *)
 Definition viewAdapt
@@ -191,7 +193,7 @@ Proof.
  
 Reserved Notation "g |- x : T ==> g'" (at level 9, x at level 50, T at level 50).
 
-Inductive typing { P : Program.program } : context -> cw_encoding -> ponyType -> context -> Prop :=
+Inductive typing { P : program } : context -> cw_encoding -> ponyType -> context -> Prop :=
   (* Path rules *)
   | path_var (gamma : context) (x : var) (aT : aliasedType) 
   : VarMapsTo x aT gamma 
@@ -204,7 +206,7 @@ Inductive typing { P : Program.program } : context -> cw_encoding -> ponyType ->
       -> gamma |- (ePath (consume x)) : hat aT ==> (removeVar x gamma)
   | path_field (gamma gamma' : context) (p : path) (s s' : typeId) (k k'' : capability) (k' : baseCapability) (f : fieldId)
   : gamma |- (ePath p) : (type s k) ==> gamma'
-      -> @Program.fieldLookup P s f (aType s' k')
+      -> @fieldLookup P s f (aType s' k')
       -> viewAdapt k k' = Some k''
       -> gamma |- (eFieldOfPath (p, f)) : (type s' k'') ==> gamma'
   (* The alias rule *)
@@ -225,36 +227,36 @@ Inductive typing { P : Program.program } : context -> cw_encoding -> ponyType ->
   | expr_fieldassign (gamma gamma' gamma'' : context) (p p' : path) (f : fieldId) (s s' : typeId) (k k' : capability) (b b' : baseCapability)
   : gamma |- (eAlias (ePath p')) : (type s' (base b)) ==> gamma'
       -> gamma' |- (ePath p) : (type s k) ==> gamma''
-      -> @Program.fieldLookup P s f (aType s' b')
+      -> @fieldLookup P s f (aType s' b')
       -> safeToWrite k b
       -> (base b) <; (base b')
       -> writeAdapt k b' = Some k'
       -> gamma |- (eRhs (fieldAssign (p, f) (aliasOf p'))) : type s' k' ==> gamma''
   | expr_funcall (gamma gamma' gamma'' : context) (p : path) (args : list (@aliased path)) (s : typeId) (b : baseCapability)
-      (mId : methodId) (mArgs : Program.arrayVarMap aliasedType) (returnType : ponyType) (body : expressionSeq)
-  : @Program.methodLookup P s mId (Program.mDef b mArgs returnType body)
-    -> typing_list gamma (eAPaths args) (Program.argValues mArgs) gamma'
+      (mId : methodId) (mArgs : arrayVarMap aliasedType) (returnType : ponyType) (body : expressionSeq)
+  : @methodLookup P s mId (mDef b mArgs returnType body)
+    -> typing_list gamma (eAPaths args) (argValues mArgs) gamma'
     -> gamma' |- (eAlias (ePath p)) : (type s (base b)) ==> gamma''
     -> gamma |- (eRhs (methodCall (aliasOf p) mId args)) : returnType ==> gamma''
   | expr_becall (gamma gamma' gamma'' : context) (p : path) (args : list (@aliased path)) (s : typeId)
-      (bId : behaviourId) (bArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
-  : @Program.behaviourLookup P s bId (Program.bDef bArgs body)
-    -> typing_list gamma (eAPaths args) (Program.argValues bArgs) gamma'
+      (bId : behaviourId) (bArgs : arrayVarMap aliasedType) (body : expressionSeq)
+  : @behaviourLookup P s bId (bDef bArgs body)
+    -> typing_list gamma (eAPaths args) (argValues bArgs) gamma'
     -> gamma' |- (eAlias (ePath p)) : (type s (base tag)) ==> gamma''
     -> gamma |- (eRhs (behaviourCall (aliasOf p) bId args)) : (type s (base tag)) ==> gamma''
   | expr_classcon (gamma gamma' : context) (args : list (@aliased path)) (c : classId)
-      (kId : constructorId) (cnArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
-  : @Program.constructorLookup P (inl c) kId (Program.cnDef cnArgs body)
-    -> typing_list gamma (eAPaths args) (Program.argValues cnArgs) gamma'
+      (kId : constructorId) (cnArgs : arrayVarMap aliasedType) (body : expressionSeq)
+  : @constructorLookup P (inl c) kId (cnDef cnArgs body)
+    -> typing_list gamma (eAPaths args) (argValues cnArgs) gamma'
     -> gamma |- (eRhs (constructorCall (inl c) kId args)) : (type (inl c) (base ref)) ==> gamma'
   | expr_actorcon (gamma gamma' : context) (args : list (@aliased path)) (a : actorId)
-      (kId : constructorId) (cnArgs : Program.arrayVarMap aliasedType) (body : expressionSeq)
-  : @Program.constructorLookup P (inr a) kId (Program.cnDef cnArgs body)
-    -> typing_list gamma (eAPaths args) (Program.argValues cnArgs) gamma'
+      (kId : constructorId) (cnArgs : arrayVarMap aliasedType) (body : expressionSeq)
+  : @constructorLookup P (inr a) kId (cnDef cnArgs body)
+    -> typing_list gamma (eAPaths args) (argValues cnArgs) gamma'
     -> gamma |- (eRhs (constructorCall (inr a) kId args)) : (type (inr a) (base tag)) ==> gamma'
 where "G |- x : T ==> G'" := (typing G x T G')
 with
-typing_list { P : Program.program } : context -> list cw_encoding -> list ponyType -> context -> Prop :=
+typing_list { P : program } : context -> list cw_encoding -> list ponyType -> context -> Prop :=
   | typing_list_nil (gamma : context)
   : typing_list gamma nil nil gamma
   | typing_list_cons (gamma gamma' gamma'' : context) (x : cw_encoding) (t : ponyType) (lx : list cw_encoding) (lt : list ponyType)
@@ -263,7 +265,7 @@ typing_list { P : Program.program } : context -> list cw_encoding -> list ponyTy
     -> typing_list gamma (x :: lx) (t :: lt) gamma''.
 
 Lemma typing_paths_func_on_type_and_outcome :
-  forall P : Program.program,
+  forall P : program,
   forall gamma gamma' gamma'' : context,
   forall p : path,
   forall T T' : ponyType,
@@ -316,7 +318,7 @@ Lemma typing_paths_func_on_type_and_outcome :
   Qed.
 
 Lemma typing_func_on_type_and_outcome :
-  forall P : Program.program,
+  forall P : program,
   forall gamma gamma' gamma'' : context,
   forall x : cw_encoding,
   forall T T' : ponyType,
@@ -347,7 +349,7 @@ Proof.
     split.
     { assert (S1' = S2' /\ b1 = b2) as [ f_type_ids_same bs_same ].
       { assert (aType S1' b1 = aType S2' b2) as aTypes_same.
-        { apply Program.fieldLookup_func with (P:=P) (s:=S1) (f:=f1).
+        { apply fieldLookup_func with (P:=P) (s:=S1) (f:=f1).
           assumption.
           rewrite fields_same.
           assert (S1 = S2) as type_ids_same by (inversion paths_typed_same; auto).
@@ -405,7 +407,9 @@ Require Import Coq.MSets.MSetInterface.
 Module WFExpressions (Map : WSfun) (SetM : WSetsOn).
 
 Module Typing := Typing Map.
-Include Typing.
+Export Typing.
+
+Import Typing.Context.
 
 Module TempSet := SetM DecidableTemp.
 Definition tempSet := TempSet.t.
@@ -457,7 +461,7 @@ Definition consumeExpr (e : expression) : tempSet :=
   | tempAssign _ (p, _) => consumePath p
   end.
 
-Inductive well_formed_expr { P : Program.program } : context -> expressionSeq -> ponyType -> Prop :=
+Inductive well_formed_expr { P : program } : context -> expressionSeq -> ponyType -> Prop :=
   | wf_return (gamma gamma' : context) (p : path) (t : ponyType)
   : @typing P gamma (ePath p) t gamma'
     -> well_formed_expr gamma (final p) t
@@ -481,12 +485,12 @@ Inductive well_formed_expr { P : Program.program } : context -> expressionSeq ->
 
 (* For some method arguments, produce the corresponding typing context *)
 Definition argsToContext (args : arrayVarMap aliasedType) : context :=
-  ArrayVarMap.fold aliasedType (LocalMap.t aliasedType ponyType)
+  ArrayVarMap.fold
     (fun key val ctxt => LocalMap.addVar key val ctxt)
     args
     (LocalMap.empty aliasedType ponyType).
 
-Definition well_formed_constructor_def { P : Program.program }
+Definition well_formed_constructor_def { P : program }
   (thisType : aliasedType) (kD : constructorDef) : Prop
   := forall args body, kD = cnDef args body
         -> exists (t : ponyType),
@@ -495,7 +499,7 @@ Definition well_formed_constructor_def { P : Program.program }
               body
               t.
 
-Definition well_formed_method_def { P : Program.program }
+Definition well_formed_method_def { P : program }
   (thisTypeId : typeId) (mD : methodDef) : Prop
   := forall rcvrCap args returnType body, mD = mDef rcvrCap args returnType body
         -> @well_formed_expr P
@@ -503,7 +507,7 @@ Definition well_formed_method_def { P : Program.program }
             body
             returnType.
 
-Definition well_formed_behaviour_def { P : Program.program }
+Definition well_formed_behaviour_def { P : program }
   (thisTypeId : actorId) (bD : behaviourDef) : Prop
   := forall args body, bD = bDef args body
         -> exists (t : ponyType),
@@ -512,19 +516,19 @@ Definition well_formed_behaviour_def { P : Program.program }
               body
               t.
 
-Definition well_formed_class { P : Program.program } (c : classId) : Prop :=
+Definition well_formed_class { P : program } (c : classId) : Prop :=
   (forall k kD, @constructorLookup P (inl c) k kD -> @well_formed_constructor_def P (aType (inl c) ref) kD)
   /\
   (forall m mD, @methodLookup P (inl c) m mD -> @well_formed_method_def P (inl c) mD).
 
-Definition well_formed_actor { P : Program.program } (a : actorId) : Prop :=
+Definition well_formed_actor { P : program } (a : actorId) : Prop :=
   (forall k kD, @constructorLookup P (inr a) k kD -> @well_formed_constructor_def P (aType (inr a) iso) kD)
   /\
   (forall m mD, @methodLookup P (inr a) m mD -> @well_formed_method_def P (inr a) mD)
   /\
   (forall b bD, @behaviourLookup P (inr a) b bD -> @well_formed_behaviour_def P a bD).
 
-Definition well_formed_program (P : Program.program) : Prop :=
+Definition well_formed_program (P : program) : Prop :=
   (forall a : actorId, @well_formed_actor P a)
   /\ (forall c : classId, @well_formed_class P c).
 

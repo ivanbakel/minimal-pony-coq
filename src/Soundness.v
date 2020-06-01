@@ -7,42 +7,42 @@ Require Import Coq.Structures.Equalities.
 Module Soundness (Map : WSfun) (SetM : WSetsOn).
 
 Module Sem := Semantics Map SetM.
-    
+Import Sem. 
 
-Definition wellTypedLocals (gamma : Sem.WFExpr.context) (L : Sem.localVars) (chi : Sem.heap) : Prop :=
+Definition wellTypedLocals (gamma : Typing.Context.context) (L : localVars) (chi : heap) : Prop :=
   ( forall x : Syntax.var, 
     forall S : Syntax.typeId,
     forall b : Syntax.baseCapability,
-    forall v : Sem.value,
-      Sem.WFExpr.VarMapsTo x (Syntax.aType S b) gamma
-      -> Sem.LocalMap.VarMapsTo x v L
-      -> Sem.heapTyping v S chi)
+    forall v : value,
+      Typing.Context.LocalMap.VarMapsTo x (Syntax.aType S b) gamma
+      -> Heap.LocalMap.VarMapsTo x v L
+      -> heapTyping v S chi)
   /\ 
   ( forall t : Syntax.temp,
     forall S : Syntax.typeId,
     forall k : Syntax.capability,
-    forall v : Sem.value,
-      Sem.WFExpr.TempMapsTo t (Syntax.type S k) gamma
-      -> Sem.LocalMap.TempMapsTo t v L
-      -> Sem.heapTyping v S chi).
+    forall v : value,
+      Typing.Context.LocalMap.TempMapsTo t (Syntax.type S k) gamma
+      -> LocalMap.TempMapsTo t v L
+      -> heapTyping v S chi).
 
 Theorem result1 :
-  forall P : Sem.WFExpr.Program.program,
-  forall gamma gamma' : Sem.WFExpr.context,
+  forall P : Program.program,
+  forall gamma gamma' : Typing.Context.context,
   forall e : Syntax.expression,
   forall E : Syntax.expressionSeq,
   forall S : Syntax.typeId,
   forall k : Syntax.capability,
   forall T : Syntax.ponyType,
-  forall L L' : Sem.localVars,
-  forall chi chi' : Sem.heap,
-  forall v : Sem.value,
-    @Sem.WFExpr.typing P gamma (Syntax.eExpr e) (Syntax.type S k) gamma'
-    -> @Sem.WFExpr.well_formed_expr P gamma (Syntax.seq e E) T
+  forall L L' : localVars,
+  forall chi chi' : heap,
+  forall v : value,
+    @typing P gamma (Syntax.eExpr e) (Syntax.type S k) gamma'
+    -> @well_formed_expr P gamma (Syntax.seq e E) T
     -> wellTypedLocals gamma L chi
-    -> @Sem.evaluatesTo P chi L (Syntax.eExpr e) chi' L' v
-    -> Sem.heapTyping v S chi'
-        /\ @Sem.WFExpr.well_formed_expr P gamma' E T.
+    -> @evaluatesTo P chi L (Syntax.eExpr e) chi' L' v
+    -> heapTyping v S chi'
+        /\ @well_formed_expr P gamma' E T.
 Proof.
   intros P gamma gamma' e E S k T L L' chi chi' v.
 
@@ -59,7 +59,7 @@ Proof.
         reflexivity.
       }
       rewrite -> v_is_none.
-      apply Sem.heaptyp_null.
+      apply heaptyp_null.
     }
     { admit. (* TODO *)
     }
@@ -71,11 +71,11 @@ Proof.
   * These are largely trivial, since a proof of the appropriate
   * form is part of the inductive definition. The main work in each
   * case requires arguing that the typing judgement is deterministic
-  * w.r.t. the output context, so that gamma' = gamma'0.
+  * w.r.t. the output Typing.Context.context, so that gamma' = gamma'0.
   *)
   { inversion e_seq_E_wf.
     { assert (Syntax.type S k = t' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (Sem.WFExpr.varDecl x)).
+      { apply typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (varDecl x)).
         rewrite -> H.
         assumption.
         assumption.
@@ -83,7 +83,7 @@ Proof.
       rewrite -> gamma_eq; assumption.
     }
     { assert (Syntax.type S k = t' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (Sem.WFExpr.assign x arhs)).
+      { apply typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (assign x arhs)).
         rewrite -> H.
         assumption.
         assumption.
@@ -91,7 +91,7 @@ Proof.
       rewrite -> gamma_eq; assumption.
     }
     { assert (Syntax.type S k = T' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (Sem.WFExpr.tempAssign t pf)).
+      { apply typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr (tempAssign t pf)).
         rewrite -> H.
         assumption.
         assumption.
@@ -99,7 +99,7 @@ Proof.
       rewrite -> gamma_eq; assumption.
     }
     { assert (Syntax.type S k = T' /\ gamma' = gamma'0) as [ _ gamma_eq ].
-      { apply Sem.WFExpr.typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr e).
+      { apply typing_func_on_type_and_outcome with (P:=P) (gamma:=gamma) (x:=Syntax.eExpr e).
         assumption.
         rewrite <- H.
         assumption.
@@ -110,25 +110,25 @@ Proof.
   Admitted.
 
 Theorem result2 :
-  forall P : Sem.WFExpr.Program.program,
-  forall gamma : Sem.WFExpr.context,
+  forall P : Program.program,
+  forall gamma : Typing.Context.context,
   forall p : Syntax.path,
   forall S : Syntax.typeId,
   forall k : Syntax.capability,
-  forall L L' : Sem.localVars,
-  forall chi chi' : Sem.heap,
-  forall v : Sem.value,
-    @Sem.WFExpr.well_formed_expr P gamma (Syntax.final p) (Syntax.type S k)
+  forall L L' : localVars,
+  forall chi chi' : heap,
+  forall v : value,
+    @well_formed_expr P gamma (Syntax.final p) (Syntax.type S k)
     -> wellTypedLocals gamma L chi
-    -> @Sem.evaluatesTo P chi L (Syntax.ePath p) chi' L' v
-    -> Sem.heapTyping v S chi'.
+    -> @evaluatesTo P chi L (Syntax.ePath p) chi' L' v
+    -> heapTyping v S chi'.
 Proof.
   intros P gamma p S k L L' chi chi' v.
 
   intros path_well_formed locals_well_typed p_evaluates_to_v.
   
   assert (chi = chi') as heaps_equal.
-  { apply (@Sem.paths_dont_change_heap P) with (L:=L) (L':=L') (p:=p) (v:=v); assumption. 
+  { apply (@paths_dont_change_heap P) with (L:=L) (L':=L') (p:=p) (v:=v); assumption. 
   } 
   rewrite <- heaps_equal. 
   
@@ -185,10 +185,7 @@ Proof.
       | | | | | | | | | | |
       ].
 
-    assert (gamma = gamma') as ctxt_same by assumption.
-
     apply temps_well_typed with (t:=t) (k:=k).
-    rewrite ctxt_same.
     assumption.
 
     inversion p_evaluates_to_v as

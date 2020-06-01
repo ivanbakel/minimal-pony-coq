@@ -50,8 +50,8 @@ Include Address.
 
 Notation "t ?" := (option t) (at level 50).
 
-Module ActorMap := Map DecidableActorAddr.
-Definition actorMap := ActorMap.t.
+Module ActorInstMap := Map DecidableActorAddr.
+Definition actorInstMap := ActorInstMap.t.
 
 Module ObjectMap := Map DecidableObjectAddr.
 Definition objectMap := ObjectMap.t.
@@ -66,6 +66,7 @@ Module FieldMap := Map DecidableField.
 Definition fieldMap := FieldMap.t.
 
 Module LocalMap := LocalMap Map.
+Import LocalMap.
 
 Definition value : Type := someAddr?.
 
@@ -114,7 +115,7 @@ Record frame : Type :=
 
 Record heap : Type :=
   heapAlloc
-  { actors : actorMap actor
+  { actors : actorInstMap actor
   ; objects : objectMap object
   ; messages : messageMap message
   ; frames : frameMap frame
@@ -123,7 +124,7 @@ Record heap : Type :=
 Instance setHeap : Settable _ := settable! heapAlloc <actors; objects; messages; frames>.
 
 Definition addActor (iota : actorAddr) (a : actor) (chi : heap) : heap :=
-  chi <|actors := (ActorMap.add iota a (actors chi))|>.
+  chi <|actors := (ActorInstMap.add iota a (actors chi))|>.
 
 Definition addObject (iota : objectAddr) (o : object) (chi : heap) : heap :=
   chi <|objects := (ObjectMap.add iota o (objects chi))|>.
@@ -137,8 +138,8 @@ Definition someMessageAddr (iota : messageAddr) : someAddr := (inl (inr iota)).
 Definition someFrameAddr (iota : frameAddr) : someAddr := (inr iota).
 
 Inductive HeapMapsTo : forall X : Type, someAddr -> X -> heap -> Prop :=
-  | ActorMapsTo (iota : actorAddr) (a : actor) (chi : heap)
-  : ActorMap.MapsTo iota a (actors chi) 
+  | ActorInstMapsTo (iota : actorAddr) (a : actor) (chi : heap)
+  : ActorInstMap.MapsTo iota a (actors chi) 
       -> HeapMapsTo actor (someActorAddr iota) a chi
   | ObjectMapsTo (iota : objectAddr) (a : object) (chi : heap)
   : ObjectMap.MapsTo iota a (objects chi) 

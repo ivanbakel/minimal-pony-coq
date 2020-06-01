@@ -224,6 +224,8 @@ From Pony Require Import ArrayMap.
 
 Module Program (Map : WSfun).
 
+Export Syntax.
+
 Module ArrayVarMap := ArrayMap DecidableVar.
 Definition arrayVarMap := ArrayVarMap.t.
 

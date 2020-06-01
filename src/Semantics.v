@@ -1,17 +1,17 @@
-From Pony Require Import Language Typing Heap.
+From Pony Require Import Language Typing Heap Regions.
 
 Require Import Coq.FSets.FMapInterface.
 Require Import Coq.MSets.MSetInterface.
 
 Module Semantics (Map : WSfun) (SetM : WSetsOn).
 
-(* Here only to have a single chain of module inclusions *)
 Module WFExpr := WFExpressions Map SetM.
+Export WFExpr.
 
 Module Heap := Heap Map.
-Include Heap.
+Export Heap.
 
-Inductive evaluatesTo { P : WFExpr.Program.program } : heap -> localVars -> Syntax.cw_encoding -> heap -> localVars -> value -> Prop :=
+Inductive evaluatesTo { P : program } : heap -> localVars -> Syntax.cw_encoding -> heap -> localVars -> value -> Prop :=
   | eval_local (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
   : LocalMap.VarMapsTo x v L
     -> evaluatesTo chi L (Syntax.ePath (Syntax.use x)) chi L v
@@ -49,7 +49,7 @@ Inductive evaluatesTo { P : WFExpr.Program.program } : heap -> localVars -> Synt
     -> HeapMessageAppend rcvrVal b argVals chi'' chi'''
     -> evaluatesTo chi L (Syntax.eRhs (Syntax.behaviourCall (Syntax.aliasOf rcvr) b args)) chi''' L'' rcvrVal
 with
-evaluatesTo_list { P : WFExpr.Program.program } : heap -> localVars -> list Syntax.cw_encoding -> heap -> localVars -> list value -> Prop :=
+evaluatesTo_list { P : program } : heap -> localVars -> list Syntax.cw_encoding -> heap -> localVars -> list value -> Prop :=
   | evaluatesTo_list_nil (chi : heap) (L : localVars)
   : evaluatesTo_list chi L nil chi L nil
   | evaluatesTo_list_cons (chi chi' chi'' : heap) (L L' L'' : localVars) (x : Syntax.cw_encoding)
@@ -58,7 +58,7 @@ evaluatesTo_list { P : WFExpr.Program.program } : heap -> localVars -> list Synt
     -> evaluatesTo_list chi' L' lx chi'' L'' lv
     -> evaluatesTo_list chi L (x :: lx) chi'' L'' (v :: lv).
 
-Lemma paths_dont_change_heap { P : WFExpr.Program.program } : forall chi chi' L L' p v, @evaluatesTo P chi L (Syntax.ePath p) chi' L' v -> chi = chi'.
+Lemma paths_dont_change_heap { P : program } : forall chi chi' L L' p v, @evaluatesTo P chi L (Syntax.ePath p) chi' L' v -> chi = chi'.
 Proof.
   intros.
   (* This is true by construction, so just invert and say so *)
