@@ -89,11 +89,16 @@ Definition asPonyType (aT : aliasedType) : ponyType :=
     | aType s b => type s (base b)
   end.
 
+Definition hatCap (b : baseCapability) : capability :=
+  match b with
+  | iso => isohat
+  | trn => trnhat
+  | b   => base b
+  end.
+
 Definition hat (aT : aliasedType) : ponyType :=
   match aT with
-    | aType s iso => type s isohat
-    | aType s trn => type s trnhat
-    | aType s b   => type s (base b)
+    | aType s b => type s (hatCap b)
   end.
 
 Lemma hat_preserves_type_id :

@@ -3,10 +3,13 @@ From Pony Require Import Language Typing Heap.
 Require Import Coq.FSets.FMapInterface.
 Require Import Coq.MSets.MSetInterface.
 
-Module Regions (Map : WSfun).
+Module Regions (Map : WSfun) (SetM : WSetsOn).
 
 Module Heap := Heap Map.
 Export Heap.
+
+Module WFExpr := WFExpressions Map SetM.
+Export WFExpr.
 
 Module SomeAddrMap := Map DecidableSomeAddr.
 Definition someAddrMap := SomeAddrMap.t.
@@ -18,6 +21,33 @@ Inductive accessor : Type :=
   | varAcc : Syntax.var -> accessor
   | next : accessor
   | super : accessor.
+
+(* Like heap lookup, but defines the (intuitive) behaviour of looking up the
+* value of an accessor on an addresss *)
+Inductive AccessLookup : someAddr -> accessor -> value -> heap -> Prop :=
+  | AccessLookup_field (iota : someAddr) (f : Syntax.fieldId) (v : value) (chi : heap)
+  : HeapFieldLookup (Some iota) f v chi
+    -> AccessLookup iota (fieldAcc f) v chi
+  | AccessLookup_var (iota : someAddr) (fr : frame) (x : Syntax.var) (v : value) (chi : heap)
+  : HeapMapsTo frame iota fr chi
+    -> Heap.LocalMap.VarMapsTo x v (lVars fr)
+    -> AccessLookup iota (varAcc x) v chi
+  | AccessLookup_next_actor (iota : someAddr) (a : actor) (v_next : messageAddr? ) (chi : heap)
+  : HeapMapsTo actor iota a chi
+    -> messageQueue a = v_next
+    -> AccessLookup iota next (option_map someMessageAddr v_next) chi
+  | AccessLookup_next_message (iota : someAddr) (m : message) (v_next : messageAddr? ) (chi : heap)
+  : HeapMapsTo message iota m chi
+    -> nextMessage m = v_next
+    -> AccessLookup iota next (option_map someMessageAddr v_next) chi
+  | AccessLookup_super_actor (iota : someAddr) (a : actor) (v_super : frameAddr? ) (chi : heap)
+  : HeapMapsTo actor iota a chi
+    -> frameStack a = v_super
+    -> AccessLookup iota super (option_map someFrameAddr v_super) chi
+  | AccessLookup_super_frame (iota : someAddr) (fr : frame) (v_super : frameAddr? ) (chi : heap)
+  : HeapMapsTo frame iota fr chi
+    -> superFrame fr = v_super
+    -> AccessLookup iota super (option_map someFrameAddr v_super) chi.
 
 Inductive region : Type :=
   | isoReg : owner -> accessor -> region
@@ -82,15 +112,27 @@ Inductive perspJudgement (chi : heap) (r : regPart chi) : someAddr -> accessor -
   | persp_nul (iota : someAddr) (a : accessor) (b : Syntax.baseCapability)
   : perspJudgement chi r iota a None b.
 
+Inductive perspJudgementTemp (chi : heap) (r : regPart chi) : someAddr -> Syntax.temp -> someAddr? -> Syntax.capability -> Prop :=
+  | persp_temp (iota : someAddr) (v : someAddr?) (a : accessor) (b : Syntax.baseCapability) (t : Syntax.temp)
+  : perspJudgement chi r iota a v b
+    -> perspJudgementTemp chi r iota t v (Syntax.base b)
+  | persp_temp_ephem (iota : someAddr) (v : someAddr?) (a : accessor) (b : Syntax.baseCapability) (t : Syntax.temp)
+  : perspJudgement chi r iota a v b
+    -> ~ AccessLookup iota a v chi
+    -> perspJudgementTemp chi r iota t v (Syntax.hatCap b)
+  | persp_temp_trans (iota iota' : someAddr) (v : someAddr?) (a : accessor) (k k' : Syntax.capability)
+    (b : Syntax.baseCapability) (t : Syntax.temp)
+  : perspJudgementTemp chi r iota t (Some iota') k
+    -> perspJudgement chi r iota' a v b
+    -> Some k' = viewAdapt k b
+    -> perspJudgementTemp chi r iota t v k'.
+
 End Regions.
 
 Module WellFormedHeaps (Map : WSfun) (SetM : WSetsOn).
 
-Module Regions := Regions Map.
+Module Regions := Regions Map SetM.
 Export Regions.
-
-Module WFExpr := WFExpressions Map SetM.
-Export WFExpr.
 
 Import Typing.Context.
 

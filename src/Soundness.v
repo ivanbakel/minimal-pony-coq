@@ -151,14 +151,7 @@ Proof.
       | _gamma1 _x0 [S' b] x_mapsto_unhat_Sk
       | | | | | | | | | | ].
 
-    assert (S' = S) as typeids_same.
-    { apply Syntax.hat_preserves_type_id with (b:=b) (k:=k).
-      unfold Syntax.hat.
-      assumption.
-    }
-
     apply vars_well_typed with (x:=x) (b:=b).
-    rewrite <- typeids_same.
     assumption.
 
     inversion p_evaluates_to_v as
