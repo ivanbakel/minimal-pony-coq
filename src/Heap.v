@@ -133,6 +133,12 @@ Definition addObject (iota : objectAddr) (o : object) (chi : heap) : heap :=
 Definition addMessage (iota : messageAddr) (m : message) (chi : heap) : heap :=
   chi <|messages := (MessageMap.add iota m (messages chi))|>.
 
+Definition addFrame (iota : frameAddr) (f : frame) (chi : heap) : heap :=
+  chi <|frames := (FrameMap.add iota f (frames chi))|>.
+
+Definition removeMessage (iota : messageAddr) (chi : heap) : heap :=
+  chi <| messages := (MessageMap.remove iota (messages chi)) |>.
+
 Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
 Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
 Definition someMessageAddr (iota : messageAddr) : someAddr := (inl (inr iota)).

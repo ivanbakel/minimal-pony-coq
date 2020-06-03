@@ -1,5 +1,8 @@
 From Pony Require Import Language Typing Heap Regions.
 
+From RecordUpdate Require Import RecordSet.
+Import RecordSetNotations.
+
 Require Import Coq.FSets.FMapInterface.
 Require Import Coq.MSets.MSetInterface.
 
@@ -67,5 +70,27 @@ Proof.
   (* This is true by construction, so just invert and say so *)
   inversion H; reflexivity.
   Qed.
+
+Inductive advancesTo { P : program } : heap -> someAddr -> heap -> Prop :=
+  | global_receive (chi : heap) (iota : actorAddr) (iota' : messageAddr) (a : actor) (m : message)
+      (bArgs : arrayVarMap Syntax.aliasedType) (bBody : Syntax.expressionSeq) (freshAddr : frameAddr)
+  : @behaviourLookup P (actorTypeId (Heap.actorId a)) (messageId m) (bDef bArgs bBody)
+    -> HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapMapsTo message (someMessageAddr iota') m chi
+    -> HeapFresh (someFrameAddr freshAddr) chi
+    -> Some iota' = messageQueue a
+    -> None = frameStack a
+    -> advancesTo chi (someActorAddr iota)
+        ( addFrame freshAddr
+          (frameAlloc
+            (LocalMap.addVar this (Some (someActorAddr iota)) (argsToLocals (messageArgs m)))
+            bBody
+            None
+            None
+          ) (* Allocate the new frame *)
+          ( addActor iota (a <| messageQueue := nextMessage m |> <| frameStack := Some freshAddr |>) (* Update the actor - next message, new frame *)
+            ( removeMessage iota' chi) (* Remove the old message *)
+          )
+        ).
 
 End Semantics.
