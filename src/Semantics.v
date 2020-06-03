@@ -91,6 +91,61 @@ Inductive advancesTo { P : program } : heap -> someAddr -> heap -> Prop :=
           ( addActor iota (a <| messageQueue := nextMessage m |> <| frameStack := Some freshAddr |>) (* Update the actor - next message, new frame *)
             ( removeMessage iota' chi) (* Remove the old message *)
           )
+        )
+  | global_advance (chi chi' : heap) (iota : actorAddr) (a : actor) (iota' : frameAddr) (f : frame)
+      (L' : localVars) (e : Syntax.expression) (E : Syntax.expressionSeq) (v : value)
+  : HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapMapsTo frame (someFrameAddr iota') f chi
+    -> toExecute f = Syntax.seq e E
+    -> None = returnVar f
+    -> @evaluatesTo P chi (lVars f) (Syntax.eExpr e) chi' L' v
+    -> advancesTo chi (someActorAddr iota)
+        (addFrame iota' (f <| lVars := L' |> <| toExecute := E |>) chi')
+  | global_return (chi chi' : heap) (iota : actorAddr) (a : actor) (iota' iota_caller : frameAddr)
+      (f f_caller : frame) (L' : localVars) (p : Syntax.path) (v : value) (x : Syntax.var)
+  : HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapMapsTo frame (someFrameAddr iota') f chi
+    -> HeapMapsTo frame (someFrameAddr iota_caller) f_caller chi
+    -> frameStack a = Some iota'
+    (* Current frame conditions *)
+    -> None = returnVar f
+    -> Syntax.final p = toExecute f
+    -> Some iota_caller = superFrame f
+    (* Parent frame conditions *)
+    -> Some x = returnVar f_caller
+    (* Evaluate the return value *)
+    -> @evaluatesTo P chi (lVars f) (Syntax.ePath p) chi' L' v
+    (* The rule *)
+    -> advancesTo chi (someActorAddr iota)
+        ( addActor iota (* Update the actor with the new stack frame *)
+          (a <| frameStack := Some iota_caller |>)
+          ( addFrame iota_caller (* Update the caller frame with the new value *)
+            (f_caller <| lVars := Heap.LocalMap.addVar x v (lVars f_caller) |> <| returnVar := None |>)
+            ( removeFrame iota' chi') (* Remove the complete frame *)
+          )
+        )
+  | global_end (chi chi' : heap) (iota : actorAddr) (a : actor) (iota' : frameAddr)
+      (f : frame) (v_caller : frameAddr?) (L' : localVars) (p : Syntax.path) (v : value)
+  : HeapMapsTo actor (someActorAddr iota) a chi
+    -> HeapMapsTo frame (someFrameAddr iota') f chi
+    -> frameStack a = Some iota'
+    (* Current frame conditions *)
+    -> None = returnVar f
+    -> Syntax.final p = toExecute f
+    -> v_caller = superFrame f
+    (* If the parent frame exists, it doesn't want this return value *)
+    -> (forall iota_caller : frameAddr,
+          v_caller = Some iota_caller
+          -> exists f_caller : frame,
+              HeapMapsTo frame (someFrameAddr iota_caller) f_caller chi
+              /\ None = returnVar f_caller) (* because the return variable is null *)
+    (* Evaluate the return value *)
+    -> @evaluatesTo P chi (lVars f) (Syntax.ePath p) chi' L' v
+    (* The rule *)
+    -> advancesTo chi (someActorAddr iota)
+        ( addActor iota (* Update the actor with the new stack frame *)
+          (a <| frameStack := v_caller |>)
+          ( removeFrame iota' chi') (* Remove the complete frame *)
         ).
 
 End Semantics.

@@ -114,6 +114,8 @@ Record frame : Type :=
   ; superFrame : frameAddr?
   }.
 
+Instance setFrame : Settable _ := settable! frameAlloc <lVars; toExecute; returnVar; superFrame>.
+
 Record heap : Type :=
   heapAlloc
   { actors : actorInstMap actor
@@ -138,6 +140,9 @@ Definition addFrame (iota : frameAddr) (f : frame) (chi : heap) : heap :=
 
 Definition removeMessage (iota : messageAddr) (chi : heap) : heap :=
   chi <| messages := (MessageMap.remove iota (messages chi)) |>.
+
+Definition removeFrame (iota : frameAddr) (chi : heap) : heap :=
+  chi <| frames := (FrameMap.remove iota (frames chi)) |>.
 
 Definition someActorAddr (iota : actorAddr) : someAddr := (inl (inl (inl iota))).
 Definition someObjectAddr (iota : objectAddr) : someAddr := (inl (inl (inr iota))).
