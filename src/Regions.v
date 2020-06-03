@@ -1,6 +1,7 @@
 From Pony Require Import Language Typing Heap.
 
 Require Import Coq.FSets.FMapInterface.
+Require Import Coq.MSets.MSetInterface.
 
 Module Regions (Map : WSfun).
 
@@ -83,35 +84,54 @@ Inductive perspJudgement (chi : heap) (r : regPart chi) : someAddr -> accessor -
 
 End Regions.
 
-Module WellFormedHeaps (Map : WSfun).
+Module WellFormedHeaps (Map : WSfun) (SetM : WSetsOn).
 
 Module Regions := Regions Map.
 Export Regions.
 
-Module Typing := Typing Map.
-Import Typing. 
+Module WFExpr := WFExpressions Map SetM.
+Export WFExpr.
+
 Import Typing.Context.
 
-Inductive values_typed (chi : heap) (r : regPart chi) (iota : someAddr) : list value -> list accessor -> list Syntax.aliasedType -> Prop :=
-  | values_typed_nil
-  : values_typed chi r iota nil nil nil
-  | values_typed_cons (v : value) (lv : list value) (a : accessor) (la : list accessor)
-      (s : Syntax.typeId) (b : Syntax.baseCapability) (lt : list Syntax.aliasedType)
-  : HeapValueType v s chi
-    -> perspJudgement chi r iota a v b
-    -> values_typed chi r iota lv la lt 
-    -> values_typed chi r iota (v :: lv) (a :: la) ((Syntax.aType s b) :: lt).
+Definition well_typed_locals (chi : heap) (r : regPart chi) (iota : someAddr) (L : localVars) (gamma : Typing.Context.context) : Prop :=
+  ( forall x : Syntax.var, 
+    forall S : Syntax.typeId,
+    forall b : Syntax.baseCapability,
+    forall v : value,
+      Typing.Context.LocalMap.VarMapsTo x (Syntax.aType S b) gamma
+      -> Heap.LocalMap.VarMapsTo x v L
+      -> heapTyping v S chi
+          /\ perspJudgement chi r iota (varAcc x) v b)
+  /\ 
+  ( forall t : Syntax.temp,
+    forall S : Syntax.typeId,
+    forall k : Syntax.capability,
+    forall v : value,
+      Typing.Context.LocalMap.TempMapsTo t (Syntax.type S k) gamma
+      -> Heap.LocalMap.TempMapsTo t v L
+      -> heapTyping v S chi).
+
+Definition argsToLocals (args : arrayVarMap value) : localVars :=
+  ArrayVarMap.fold (fun var val localMap => Heap.LocalMap.addVar var val localMap) args emptyLocals.
+
+Definition well_typed_fields { P : program } (chi : heap) (r : regPart chi) (iota : someAddr) (F : Heap.fieldMap value) (S : Syntax.typeId) : Prop :=
+  ( forall f : Syntax.fieldId, 
+    forall S' : Syntax.typeId,
+    forall b : Syntax.baseCapability,
+    forall v : value,
+      @fieldLookup P S f (Syntax.aType S' b) 
+      -> Heap.FieldMap.MapsTo f v F
+      -> heapTyping v S' chi
+          /\ perspJudgement chi r iota (fieldAcc f) v b).
 
 Inductive well_formed_message { p : program } (chi : heap) (r : regPart chi) : option messageAddr -> Syntax.actorId -> Prop :=
-  | wf_message (iota : messageAddr) (rcvrId : Syntax.actorId) (bId : Syntax.behaviourId) (mArgs : list value) (mNext : option messageAddr)
+  | wf_message (iota : messageAddr) (rcvrId : Syntax.actorId) (bId : Syntax.behaviourId) (mArgs : arrayVarMap value) (mNext : option messageAddr)
       (bArgs : arrayVarMap Syntax.aliasedType) (bBody : Syntax.expressionSeq)
   : HeapMapsTo message (someMessageAddr iota) (messageAlloc bId mArgs mNext) chi
     -> @behaviourLookup p (inr rcvrId)  bId (bDef bArgs bBody) 
     -> perspJudgement chi r (someMessageAddr iota) next (option_map someMessageAddr mNext) Syntax.iso
-    -> values_typed chi r (someMessageAddr iota)
-          mArgs
-          (map varAcc (map fst (ArrayVarMap.elements bArgs)))
-          (map snd (ArrayVarMap.elements bArgs))
+    -> well_typed_locals chi r (someMessageAddr iota) (argsToLocals mArgs) (argsToContext bArgs)
     -> well_formed_message chi r mNext rcvrId
     -> well_formed_message chi r (Some iota) rcvrId
   | wf_message_nul (a : Syntax.actorId)
@@ -139,5 +159,29 @@ well_formed_frame_if_returned (chi : heap) (r : regPart chi) : option frameAddr 
   | wf_frame_ir_no_return (v : option frameAddr) (t : Syntax.ponyType)
   : well_formed_frame chi r v 
     -> well_formed_frame_if_returned chi r v t.
+
+Definition well_formed_object { P : program } (chi : heap) (r : regPart chi) (iota : objectAddr) : Prop :=
+  exists c : Syntax.classId,
+  exists F : Heap.fieldMap value,
+    HeapMapsTo object (someObjectAddr iota) (objectAlloc c F) chi
+    /\ @well_typed_fields P chi r (someObjectAddr iota) F (classTypeId c).
+
+Definition well_formed_actor { P : program } (chi : heap) (r : regPart chi) (iota : actorAddr) : Prop :=
+  exists a : Syntax.actorId,
+  exists F : Heap.fieldMap value,
+  exists v_mes : option messageAddr,
+  exists v_frm : option frameAddr,
+    HeapMapsTo actor (someActorAddr iota) (actorAlloc a F v_mes v_frm) chi
+    /\ perspJudgement chi r (someActorAddr iota) (varAcc Syntax.this) (Some (someActorAddr iota)) Syntax.iso
+    /\ @well_typed_fields P chi r (someActorAddr iota) F (actorTypeId a)
+    /\ @well_formed_message P chi r v_mes a
+    /\ well_formed_frame chi r v_frm. 
+
+Definition well_formed_heap { P : program } (chi : heap) (r : regPart chi) : Prop :=
+  ( forall iota_a : actorAddr,
+      @well_formed_actor P chi r iota_a )
+  /\
+  ( forall iota_o : objectAddr,
+      @well_formed_object P chi r iota_o ).
 
 End WellFormedHeaps.

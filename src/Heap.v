@@ -71,6 +71,7 @@ Import LocalMap.
 Definition value : Type := someAddr?.
 
 Definition localVars : Type := LocalMap.t value value.
+Definition emptyLocals : localVars := LocalMap.empty value value.
 
 Record actor : Type :=
   actorAlloc
@@ -99,7 +100,7 @@ Definition addObjectField (f : Syntax.fieldId) (v : value) (o : object) : object
 Record message : Type :=
   messageAlloc
   { messageId : Syntax.behaviourId
-  ; messageArgs : list value
+  ; messageArgs : arrayVarMap value
   ; nextMessage : messageAddr?
   }.
 
@@ -183,27 +184,27 @@ Inductive HeapFieldAdd : value -> Syntax.fieldId -> value -> heap -> heap -> Pro
   : HeapMapsTo object (someObjectAddr iota) o chi
     -> HeapFieldAdd (Some (someObjectAddr iota)) f v chi (addObject iota o chi).
 
-Inductive HeapMessageAppend : value -> Syntax.behaviourId -> list value -> heap -> heap -> Prop :=
-  | HeapMessageAppend_null (b : Syntax.behaviourId) (A : list value) (chi : heap)
+Inductive HeapMessageAppend : value -> Syntax.behaviourId -> arrayVarMap value -> heap -> heap -> Prop :=
+  | HeapMessageAppend_null (b : Syntax.behaviourId) (A : arrayVarMap value) (chi : heap)
   : HeapMessageAppend None b A chi chi
-  | HeapMessageAppend_noqueue (iota : actorAddr) (a : actor) (b : Syntax.behaviourId) (A : list value) (chi : heap) (freshAddr : messageAddr)
+  | HeapMessageAppend_noqueue (iota : actorAddr) (a : actor) (b : Syntax.behaviourId) (A : arrayVarMap value) (chi : heap) (freshAddr : messageAddr)
   : messageQueue a = None
     -> HeapMapsTo actor (someActorAddr iota) a chi
     -> HeapFresh (someMessageAddr freshAddr) chi
     -> HeapMessageAppend (Some (someActorAddr iota)) b A chi (addActor iota (a <| messageQueue := (Some freshAddr) |>) (addMessage freshAddr (messageAlloc b A None) chi))
-  | HeapMessageAppend_queue (iota : actorAddr) (iota_m : messageAddr) (a : actor) (b : Syntax.behaviourId) (A : list value) (chi chi' : heap)
+  | HeapMessageAppend_queue (iota : actorAddr) (iota_m : messageAddr) (a : actor) (b : Syntax.behaviourId) (A : arrayVarMap value) (chi chi' : heap)
   : messageQueue a = Some iota_m 
     -> HeapMapsTo actor (someActorAddr iota) a chi
     -> HeapMessageAppendQueue iota_m b A chi chi'
     -> HeapMessageAppend (Some (someActorAddr iota)) b A chi chi'
 with
-HeapMessageAppendQueue : messageAddr -> Syntax.behaviourId -> list value -> heap -> heap -> Prop :=
-  | HeapMessageAppendQueue_end (iota freshAddr : messageAddr) (m : message) (b : Syntax.behaviourId) (A : list value) (chi : heap)
+HeapMessageAppendQueue : messageAddr -> Syntax.behaviourId -> arrayVarMap value -> heap -> heap -> Prop :=
+  | HeapMessageAppendQueue_end (iota freshAddr : messageAddr) (m : message) (b : Syntax.behaviourId) (A : arrayVarMap value) (chi : heap)
   : nextMessage m = None
     -> HeapMapsTo message (someMessageAddr iota) m chi
     -> HeapFresh (someMessageAddr freshAddr) chi
     -> HeapMessageAppendQueue iota b A chi (addMessage iota (m <| nextMessage := (Some freshAddr) |>) (addMessage freshAddr (messageAlloc b A None) chi))
-  | HeapMessageAppendQueue_cons (iota iota' : messageAddr) (m : message) (b : Syntax.behaviourId) (A : list value) (chi chi' : heap)
+  | HeapMessageAppendQueue_cons (iota iota' : messageAddr) (m : message) (b : Syntax.behaviourId) (A : arrayVarMap value) (chi chi' : heap)
   : nextMessage m = Some iota'
     -> HeapMapsTo message (someMessageAddr iota) m chi
     -> HeapMessageAppendQueue iota' b A chi chi'

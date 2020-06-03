@@ -5,11 +5,12 @@ Require Import Coq.MSets.MSetInterface.
 
 Module Semantics (Map : WSfun) (SetM : WSetsOn).
 
-Module WFExpr := WFExpressions Map SetM.
-Export WFExpr.
+Module WFHeap := WellFormedHeaps Map SetM.
+Export WFHeap.
 
-Module Heap := Heap Map.
-Export Heap.
+(* TODO : define this to work correctly *)
+Lemma valuesToArgs (argTypes : arrayVarMap Syntax.aliasedType) (argVals : list value) : arrayVarMap value.
+  Admitted.
 
 Inductive evaluatesTo { P : program } : heap -> localVars -> Syntax.cw_encoding -> heap -> localVars -> value -> Prop :=
   | eval_local (chi : heap) (L : localVars) (x : Syntax.var) (v : value)
@@ -42,11 +43,13 @@ Inductive evaluatesTo { P : program } : heap -> localVars -> Syntax.cw_encoding 
     -> HeapFieldAdd u f v chi'' chi'''
     -> evaluatesTo chi L (Syntax.eRhs (Syntax.fieldAssign (p, f) (Syntax.aliasOf p'))) chi''' L'' v'
   | eval_becall (chi chi' chi'' chi''' : heap) (L L' L'' : localVars) (rcvr : Syntax.path) (args : list (@Syntax.aliased Syntax.path))
-    (b : Syntax.behaviourId) (rcvrVal : value) (argVals : list value)
-  : evaluatesTo_list chi L (Syntax.eAPaths args) chi' L' argVals
+    (b : Syntax.behaviourId) (rcvrVal : value) (a : Syntax.actorId) (bArgs : arrayVarMap Syntax.aliasedType)
+    (bBody : Syntax.expressionSeq) (argVals : list value)
+  : @behaviourLookup P (actorTypeId a) b (bDef bArgs bBody)
+    -> evaluatesTo_list chi L (Syntax.eAPaths args) chi' L' argVals
     -> evaluatesTo chi' L' (Syntax.eAlias (Syntax.ePath rcvr)) chi'' L'' rcvrVal
-    -> False (*TODO: receiver is actor in the heap - is this necessary? *)
-    -> HeapMessageAppend rcvrVal b argVals chi'' chi'''
+    -> heapTyping rcvrVal (actorTypeId a) chi''
+    -> HeapMessageAppend rcvrVal b (valuesToArgs bArgs argVals) chi'' chi'''
     -> evaluatesTo chi L (Syntax.eRhs (Syntax.behaviourCall (Syntax.aliasOf rcvr) b args)) chi''' L'' rcvrVal
 with
 evaluatesTo_list { P : program } : heap -> localVars -> list Syntax.cw_encoding -> heap -> localVars -> list value -> Prop :=

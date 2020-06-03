@@ -222,12 +222,12 @@ Require Import Coq.FSets.FMapFacts.
 
 From Pony Require Import ArrayMap.
 
+Module ArrayVarMap := ArrayMap DecidableVar.
+Definition arrayVarMap := ArrayVarMap.t.
+
 Module Program (Map : WSfun).
 
 Export Syntax.
-
-Module ArrayVarMap := ArrayMap DecidableVar.
-Definition arrayVarMap := ArrayVarMap.t.
 
 Definition argValues (avMap : arrayVarMap Syntax.aliasedType) : list Syntax.ponyType :=
   map Syntax.asPonyType (map snd (ArrayVarMap.elements avMap)).

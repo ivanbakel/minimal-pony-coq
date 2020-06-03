@@ -9,23 +9,6 @@ Module Soundness (Map : WSfun) (SetM : WSetsOn).
 Module Sem := Semantics Map SetM.
 Import Sem. 
 
-Definition wellTypedLocals (gamma : Typing.Context.context) (L : localVars) (chi : heap) : Prop :=
-  ( forall x : Syntax.var, 
-    forall S : Syntax.typeId,
-    forall b : Syntax.baseCapability,
-    forall v : value,
-      Typing.Context.LocalMap.VarMapsTo x (Syntax.aType S b) gamma
-      -> Heap.LocalMap.VarMapsTo x v L
-      -> heapTyping v S chi)
-  /\ 
-  ( forall t : Syntax.temp,
-    forall S : Syntax.typeId,
-    forall k : Syntax.capability,
-    forall v : value,
-      Typing.Context.LocalMap.TempMapsTo t (Syntax.type S k) gamma
-      -> LocalMap.TempMapsTo t v L
-      -> heapTyping v S chi).
-
 Theorem result1 :
   forall P : Program.program,
   forall gamma gamma' : Typing.Context.context,
@@ -36,17 +19,20 @@ Theorem result1 :
   forall T : Syntax.ponyType,
   forall L L' : localVars,
   forall chi chi' : heap,
+  forall iota : frameAddr,
+  forall R : regPart chi,
   forall v : value,
     @typing P gamma (Syntax.eExpr e) (Syntax.type S k) gamma'
     -> @well_formed_expr P gamma (Syntax.seq e E) T
-    -> wellTypedLocals gamma L chi
+    -> (exists f : frame, HeapMapsTo frame (someFrameAddr iota) f chi /\ lVars f = L /\ toExecute f = (Syntax.seq e E) /\ returnVar f = None)
+    -> well_typed_locals chi R (someFrameAddr iota) L gamma
     -> @evaluatesTo P chi L (Syntax.eExpr e) chi' L' v
     -> heapTyping v S chi'
         /\ @well_formed_expr P gamma' E T.
 Proof.
-  intros P gamma gamma' e E S k T L L' chi chi' v.
+  intros P gamma gamma' e E S k T L L' chi chi' iota R v.
 
-  intros e_has_type_S_k e_seq_E_wf frame_well_typed e_evaluates_v.
+  intros e_has_type_S_k e_seq_E_wf frame_in_heap locals_well_regioned e_evaluates_v.
   
   split.
   (*Show that the evaluated value has the expected type.
@@ -117,15 +103,18 @@ Theorem result2 :
   forall k : Syntax.capability,
   forall L L' : localVars,
   forall chi chi' : heap,
+  forall iota : frameAddr,
+  forall R : regPart chi,
   forall v : value,
     @well_formed_expr P gamma (Syntax.final p) (Syntax.type S k)
-    -> wellTypedLocals gamma L chi
+    -> (exists f : frame, HeapMapsTo frame (someFrameAddr iota) f chi /\ lVars f = L /\ toExecute f = (Syntax.final p) /\ returnVar f = None)
+    -> well_typed_locals chi R (someFrameAddr iota) L gamma
     -> @evaluatesTo P chi L (Syntax.ePath p) chi' L' v
     -> heapTyping v S chi'.
 Proof.
-  intros P gamma p S k L L' chi chi' v.
+  intros P gamma p S k L L' chi chi' iota R v.
 
-  intros path_well_formed locals_well_typed p_evaluates_to_v.
+  intros path_well_formed frame_in_heap locals_well_typed p_evaluates_to_v.
   
   assert (chi = chi') as heaps_equal.
   { apply (@paths_dont_change_heap P) with (L:=L) (L':=L') (p:=p) (v:=v); assumption. 
