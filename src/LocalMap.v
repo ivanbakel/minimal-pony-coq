@@ -1,11 +1,15 @@
 From Pony Require Import Language.
 
 Require Import Coq.FSets.FMapInterface.
+Require Import Coq.FSets.FMapFacts.
 
 Module LocalMap (Map : WSfun).
 
 Module VarMap := Map DecidableVar.
+Module VarMapFacts := WFacts_fun DecidableVar VarMap.
+
 Module TempMap := Map DecidableTemp.
+Module TempMapFacts := WFacts_fun DecidableTemp TempMap.
 
 Definition t (X Y : Type) : Type := ((VarMap.t X) * (TempMap.t Y)).
 
@@ -43,7 +47,10 @@ Lemma VarMapsTo_func { E F : Type } :
     -> VarMapsTo var e2 m
     -> e1 = e2.
 Proof.
-  Admitted. (* TODO: Prove this lemma (v. obvious) *)
+  intros m var e1 e2.
+  unfold VarMapsTo.
+  intros; apply VarMapFacts.MapsTo_fun with (m:=fst m) (x:=var); assumption.
+  Qed.
 
 Lemma TempMapsTo_func { E F : Type } :
   forall m : t E F,
@@ -53,6 +60,9 @@ Lemma TempMapsTo_func { E F : Type } :
     -> TempMapsTo temp f2 m
     -> f1 = f2.
 Proof.
-  Admitted. (* TODO: Prove this lemma (v. obvious) *)
+  intros m temp f1 f2.
+  unfold TempMapsTo.
+  intros; apply TempMapFacts.MapsTo_fun with (m:=snd m) (x:=temp); assumption.
+  Qed.
 
 End LocalMap.
